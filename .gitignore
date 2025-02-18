@@ -20,3 +20,5 @@ db.sqlite3
 *.pot
 *.pyc
 migrations/
+
+.idea/
