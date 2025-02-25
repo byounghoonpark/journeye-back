@@ -11,7 +11,7 @@ class HotelCreateView(APIView):
     permission_classes = [IsAuthenticated]  # 로그인한 유저만 접근 가능
 
     @swagger_auto_schema(
-        operation_description="새로운 호텔을 등록하는 API (호텔 매니저만 가능)",
+        operation_description="새로운 호텔을 등록하는 API (관리자만 가능)",
         request_body=HotelCreateSerializer,
         responses={
             201: openapi.Response(
@@ -37,7 +37,7 @@ class HotelCreateView(APIView):
     )
     def post(self, request):
         """ 호텔 등록 API (Swagger 입력 가능) """
-        if request.user.profile.role != "HOTEL_MANAGER":
+        if request.user.profile.role != "SPACE_MANAGER":
             return Response({"error": "호텔 매니저만 등록할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = HotelCreateSerializer(data=request.data)

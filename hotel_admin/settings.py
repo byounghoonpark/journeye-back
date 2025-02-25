@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 from datetime import timedelta
-
+import json
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Quick-start development settings - unsuitable for production
@@ -87,14 +87,17 @@ ASGI_APPLICATION = 'hotel_admin.asgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+with open(os.path.join(BASE_DIR, 'secrets.json')) as config_file:
+    secret_config = json.load(config_file)
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': '12345678',
-        'HOST': 'localhost',
-        'PORT': '5433',
+        'NAME': secret_config['DB_NAME'],
+        'USER': secret_config['DB_USER'],
+        'PASSWORD': secret_config['DB_PASSWORD'],
+        'HOST': secret_config['DB_HOST'],
+        'PORT': secret_config['DB_PORT'],
     }
 }
 # redis 채널 설정
@@ -102,7 +105,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [("172.21.197.87", 6379)],
+            "hosts": [(secret_config['REDIS_HOST'], secret_config['REDIS_PORT'])],
         },
     },
 }
@@ -179,3 +182,12 @@ SWAGGER_SETTINGS = {
     "USE_SESSION_AUTH": False,  # Django 로그인 제거
     "JSON_EDITOR": True,
 }
+
+# 이메일 설정
+EMAIL_BACKEND = secret_config['EMAIL_BACKEND']
+EMAIL_HOST = secret_config['EMAIL_HOST']
+EMAIL_PORT = secret_config['EMAIL_PORT']
+EMAIL_USE_TLS = secret_config['EMAIL_USE_TLS']
+EMAIL_HOST_USER = secret_config['EMAIL_HOST_USER']
+EMAIL_HOST_PASSWORD = secret_config['EMAIL_HOST_PASSWORD']
+DEFAULT_FROM_EMAIL = secret_config['DEFAULT_FROM_EMAIL']

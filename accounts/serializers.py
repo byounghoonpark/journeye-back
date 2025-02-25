@@ -1,31 +1,45 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from accounts.models import UserProfile  # UserProfile 모델 사용
+from accounts.models import UserProfile, UserRole  # UserProfile 모델 사용
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = [
+            'profile_picture',
+            'nationality',
+        ]
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(required=True)
-    password = serializers.CharField(write_only=True)
+    profile_picture = serializers.ImageField(required=False)
+    nationality = serializers.CharField(max_length=100, required=False)
 
     class Meta:
         model = User
-        fields = ["username", "email", "password"]
+        fields = ['username', 'email', 'password', 'profile_picture', 'nationality']
 
     def create(self, validated_data):
         user = User.objects.create_user(
-            username=validated_data["username"],
-            email=validated_data["email"],
-            password=validated_data["password"]
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password']
         )
-        # UserProfile 생성 (기본값: 일반 사용자)
-        UserProfile.objects.create(user=user, role="GENERAL")
+        UserProfile.objects.create(
+            user=user,
+            profile_picture=validated_data.get('profile_picture'),
+            nationality=validated_data.get('nationality'),
+            role='GENERAL',
+            email_verified=False,
+            phone_verified=False
+        )
         return user
 
-class HotelManagerAssignSerializer(serializers.ModelSerializer):
+class SpaceManagerAssignSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ["role"]
 
     def update(self, instance, validated_data):
-        instance.role = "HOTEL_MANAGER"
+        instance.role = "SPACE_MANAGER"
         instance.save()
         return instance
