@@ -55,6 +55,10 @@ class CheckInCreateView(APIView):
         check_out_date = request.data.get('check_out_date')
         people = request.data.get('people', 1)  # 예약 인원수, 기본값 1
 
+        """
+            임시코드를 발급해서 예약에 넣고 
+        """
+
         # user_id가 있으면 기존 유저 조회, 없으면 임시 유저 생성
         if user_id:
             user = get_object_or_404(User, id=user_id)

@@ -8,9 +8,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
+
 from accounts.models import UserProfile
-from .serializers import UserRegistrationSerializer, SpaceManagerAssignSerializer
-from rest_framework.generics import get_object_or_404
+from .serializers import UserRegistrationSerializer, SpaceManagerAssignSerializer, UserDetailSerializer, EmailTokenObtainPairSerializer
+from rest_framework.generics import get_object_or_404, RetrieveAPIView
 from rest_framework.parsers import MultiPartParser, FormParser
 import random
 from hotel_admin import settings
@@ -29,7 +31,8 @@ class UserRegistrationView(APIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="유저 ID"),
-                        "username": openapi.Schema(type=openapi.TYPE_STRING, description="사용자 이름"),
+                        "first_name": openapi.Schema(type=openapi.TYPE_STRING, description="사용자 이름"),
+                        "last_name": openapi.Schema(type=openapi.TYPE_STRING, description="사용자 성"),
                         "email": openapi.Schema(type=openapi.TYPE_STRING, description="이메일"),
                         "access_token": openapi.Schema(type=openapi.TYPE_STRING, description="액세스 토큰"),
                         "refresh_token": openapi.Schema(type=openapi.TYPE_STRING, description="리프레시 토큰"),
@@ -84,6 +87,8 @@ class UserRegistrationView(APIView):
                 }, status=status.HTTP_201_CREATED)
 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 class ResendEmailVerificationView(APIView):
@@ -158,6 +163,13 @@ class EmailVerificationView(APIView):
             return Response({"message": "인증번호가 올바르지 않습니다."}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class LoggedInUserDetailView(RetrieveAPIView):
+    serializer_class = UserDetailSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
 
 class AssignSpaceManagerView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]  # 어드민만 접근 가능
@@ -184,3 +196,30 @@ class AssignSpaceManagerView(APIView):
             return Response({"message": f"{user.username}님이 공간 관리자로 설정되었습니다."}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class EmailTokenObtainPairView(TokenObtainPairView):
+    serializer_class = EmailTokenObtainPairSerializer
+
+    @swagger_auto_schema(
+        operation_description="이메일과 비밀번호를 이용한 JWT 토큰 발급 API",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'email': openapi.Schema(type=openapi.TYPE_STRING, description="이메일"),
+                'password': openapi.Schema(type=openapi.TYPE_STRING, format="password", description="비밀번호"),
+            },
+            required=['email', 'password']
+        ),
+        responses={
+            200: openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'access': openapi.Schema(type=openapi.TYPE_STRING, description="액세스 토큰"),
+                    'refresh': openapi.Schema(type=openapi.TYPE_STRING, description="리프레시 토큰"),
+                }
+            ),
+            400: "잘못된 요청"
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
