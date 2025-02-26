@@ -60,22 +60,10 @@ class UserRegistrationView(APIView):
                 access_token = str(refresh.access_token)
                 refresh_token = str(refresh)
 
-                # 6자리 인증번호 생성
-
-                verification_code = str(random.randint(100000, 999999))
 
                 # UserProfile에 인증번호 저장 (모델에 email_verification_code 필드 필요)
                 profile = user.profile
-                profile.email_code = verification_code
                 profile.save()
-
-                # 이메일 전송
-                subject = '이메일 인증 6자리 코드'
-                message = f'아래의 6자리 코드를 입력하여 이메일 인증을 완료해주세요:\n{verification_code}'
-
-                from_email = settings.DEFAULT_FROM_EMAIL
-                recipient_list = [user.email]
-                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
 
                 return Response({
                     "id": user.id,
@@ -91,20 +79,33 @@ class UserRegistrationView(APIView):
 
 
 
-class ResendEmailVerificationView(APIView):
-    permission_classes = [IsAuthenticated]
+class SendEmailVerificationView(APIView):
+    permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="이메일 인증 코드 재발송 API",
+        operation_description="이메일 인증 코드 발송 API",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "email": openapi.Schema(type=openapi.TYPE_STRING, description="이메일 주소")
+            },
+            required=["email"]
+        ),
         responses={
-            200: openapi.Response(description="이메일 인증 코드가 재발송되었습니다."),
-            400: openapi.Response(description="잘못된 요청")
+            200: openapi.Response(description="이메일 인증 코드가 발송되었습니다."),
+            400: openapi.Response(description="잘못된 요청"),
         }
     )
     def post(self, request):
-        """로그인한 유저를 기반으로 이메일 인증 코드 재발송 API"""
-        user = request.user
-        profile = user.profile
+        email = request.data.get("email")
+        if not email:
+            return Response({"message": "이메일 주소를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+            profile = user.profile
+        except User.DoesNotExist:
+            return Response({"message": "사용자를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
 
         # 6자리 인증번호 생성
         verification_code = str(random.randint(100000, 999999))
@@ -114,14 +115,17 @@ class ResendEmailVerificationView(APIView):
         profile.save()
 
         # 이메일 전송
-        subject = '이메일 인증 6자리 코드 재발송'
+        subject = '이메일 인증 6자리 코드 발송'
         message = f'아래의 6자리 코드를 입력하여 이메일 인증을 완료해주세요:\n{verification_code}'
 
         from_email = settings.DEFAULT_FROM_EMAIL
         recipient_list = [user.email]
         send_mail(subject, message, from_email, recipient_list, fail_silently=False)
 
-        return Response({"message": "이메일 인증 코드가 재발송되었습니다."}, status=status.HTTP_200_OK)
+        return Response({
+            "message": "이메일 인증 코드가 발송되었습니다.",
+            "verification_code": verification_code
+        }, status=status.HTTP_200_OK)
 
 
 class EmailVerificationView(APIView):
