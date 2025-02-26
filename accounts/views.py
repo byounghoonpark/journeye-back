@@ -101,26 +101,17 @@ class SendEmailVerificationView(APIView):
         if not email:
             return Response({"message": "이메일 주소를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            user = User.objects.get(email=email)
-            profile = user.profile
-        except User.DoesNotExist:
-            return Response({"message": "사용자를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
 
         # 6자리 인증번호 생성
         verification_code = str(random.randint(100000, 999999))
 
-        # UserProfile에 인증번호 저장
-        profile.email_code = verification_code
-        profile.save()
 
         # 이메일 전송
         subject = '이메일 인증 6자리 코드 발송'
         message = f'아래의 6자리 코드를 입력하여 이메일 인증을 완료해주세요:\n{verification_code}'
 
         from_email = settings.DEFAULT_FROM_EMAIL
-        recipient_list = [user.email]
-        send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+        send_mail(subject, message, from_email, [email], fail_silently=False)
 
         return Response({
             "message": "이메일 인증 코드가 발송되었습니다.",
