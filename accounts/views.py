@@ -68,7 +68,7 @@ class UserRegistrationView(APIView):
                     "email": user.email,
                     "access_token": access_token,
                     "refresh_token": refresh_token,
-                    "message": "회원가입이 완료되었습니다. 이메일로 전송된 6자리 코드를 확인해주세요."
+                    "message": "Registration completed successfully"
                 }, status=status.HTTP_201_CREATED)
 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

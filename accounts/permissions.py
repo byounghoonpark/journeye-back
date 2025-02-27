@@ -5,7 +5,7 @@ from rest_framework.permissions import BasePermission, IsAdminUser
 class IsAdminOrManager(BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated and (
-            request.user.profile.role == "SPACE_MANAGER" or IsAdminUser().has_permission(request, view)
+            request.user.profile.role == "MANAGER" or IsAdminUser().has_permission(request, view)
         )
 class IsOwnerOrReadOnly(BasePermission):
     def has_object_permission(self, request, view, obj):

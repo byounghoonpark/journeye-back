@@ -1,89 +1,135 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAdminUser
 from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.shortcuts import get_object_or_404
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.utils.timezone import now
 import random
 import string
-from rest_framework.generics import get_object_or_404
-from bookings.models import Reservation
-from spaces.models import Space
-from drf_yasg.utils import swagger_auto_schema
+
+from accounts.models import UserProfile
+from accounts.permissions import IsAdminOrManager
+from .models import CheckIn, Reservation, HotelRoom
+from spaces.models import BaseSpace
+from hotel_admin import settings
+from .serializers import CheckInRequestSerializer, CheckInSerializer
 from drf_yasg import openapi
 
-class CheckInCreateView(APIView):
-    permission_classes = [IsAdminUser]
+
+def generate_unique_temp_code():
+    """DB에 없는 6자리 숫자 임시코드를 생성"""
+    while True:
+        temp_code = ''.join(random.choices(string.digits, k=6))
+        if not CheckIn.objects.filter(temp_code=temp_code).exists():
+            return temp_code
+
+
+class CheckInViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated, IsAdminOrManager]
 
     @swagger_auto_schema(
-        operation_description="현장 체크인을 위한 Reservation 생성 API. "
-                              "요청에 기존 유저의 user_id가 포함되어 있으면 해당 유저로 예약을 진행하며, "
-                              "없으면 임시 유저를 생성하여 예약을 진행합니다.",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'user_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='기존 유저 ID (선택 사항)'),
-                'space_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='예약할 공간의 ID'),
-                'check_in_date': openapi.Schema(type=openapi.FORMAT_DATE, description='체크인 날짜 (YYYY-MM-DD)'),
-                'check_out_date': openapi.Schema(type=openapi.FORMAT_DATE, description='체크아웃 날짜 (YYYY-MM-DD)'),
-                'people': openapi.Schema(type=openapi.TYPE_INTEGER, description='예약 인원수', default=1),
-            },
-            required=['space_id', 'check_in_date', 'check_out_date']
-        ),
+        request_body=CheckInRequestSerializer,
         responses={
-            201: openapi.Response(
-                description="Reservation이 성공적으로 생성됨",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'id': openapi.Schema(type=openapi.TYPE_INTEGER, description='생성된 Reservation ID'),
-                        'user': openapi.Schema(type=openapi.TYPE_STRING, description='예약에 사용된 유저 이름'),
-                        'space': openapi.Schema(type=openapi.TYPE_STRING, description='예약한 공간 이름'),
-                        'check_in_date': openapi.Schema(type=openapi.FORMAT_DATE, description='체크인 날짜'),
-                        'check_out_date': openapi.Schema(type=openapi.FORMAT_DATE, description='체크아웃 날짜'),
-                        'temp_code': openapi.Schema(type=openapi.TYPE_STRING, description='임시 6자리 승인번호'),
-                    }
-                )
-            )
-        }
+            201: CheckInSerializer,
+            400: openapi.Response(description="잘못된 요청 또는 만료된 예약"),
+            403: openapi.Response(description="체크인 권한 없음"),
+        },
+        operation_summary="체크인 처리",
+        operation_description="예약된 고객 또는 워크인 고객의 체크인을 처리합니다.",
     )
+    def create(self, request):
+        user = request.user
+        data = request.data
+        reservation_id = data.get("reservation_id")
+        user_id = data.get("user_id")
+        hotel_id = data.get("hotel_id")
+        room_number = data.get("room_number")
+        start_date = data.get("start_date")
+        start_time = data.get("start_time")
+        end_date = data.get("end_date")
+        end_time = data.get("end_time")
+        natinality = data.get("natinality")
+        first_name = data.get("first_name")
+        last_name = data.get("last_name")
+        email = data.get("email")
+        phone = data.get("phone")
 
-    def post(self, request):
-        # 요청 데이터 추출
-        user_id = request.data.get('user_id')
-        space_id = request.data.get('space_id')
-        check_in_date = request.data.get('check_in_date')
-        check_out_date = request.data.get('check_out_date')
-        people = request.data.get('people', 1)  # 예약 인원수, 기본값 1
+        # 호텔 및 객실 찾기
+        hotel = get_object_or_404(BaseSpace, id=hotel_id)
+        room = get_object_or_404(HotelRoom, room_number=room_number, room_type__basespace=hotel)
 
-        """
-            임시코드를 발급해서 예약에 넣고 
-        """
+        # 현재 요청한 사용자가 호텔 매니저 또는 어드민인지 확인
+        if not (user.is_staff or hotel.managers.filter(id=user.id).exists()):
+            return Response({"error": "체크인 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
 
-        # user_id가 있으면 기존 유저 조회, 없으면 임시 유저 생성
-        if user_id:
-            user = get_object_or_404(User, id=user_id)
-        else:
-            temp_username = 'temp_' + ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-            user = User.objects.create_user(username=temp_username, password='temporary_password')
+        # 현재 시간으로 체크인/체크아웃 시간 설정
+        check_in_time = now().time()
 
-        # 해당 space 조회
-        space = get_object_or_404(Space, id=space_id)
+        # 예약된 고객 체크인
+        if user_id and reservation_id:
+            reservation = get_object_or_404(Reservation, id=reservation_id, user_id=user_id, space=room.room_type)
 
-        # Reservation 생성 (체크인과 예약을 Reservation으로 관리)
+            if reservation.end_date < now().date():
+                return Response({"error": "만료된 예약입니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+            check_in = CheckIn.objects.create(
+                user=reservation.user,
+                hotel_room=room,
+                reservation=reservation,
+                check_in_date=now().date(),
+                check_in_time=check_in_time,
+                check_out_date=reservation.end_date,
+                check_out_time=end_time
+            )
+            return Response({"message": "체크인 완료", "temp_code": check_in.temp_code}, status=status.HTTP_201_CREATED)
+
+        # 워크인 고객 체크인 (새 유저 생성)
+        temp_code = generate_unique_temp_code()
+        new_user = User.objects.create_user(
+            username=f"walkin_{temp_code}",
+            first_name=first_name,
+            last_name=last_name,
+            password=generate_unique_temp_code(),
+            email=email,
+        )
+        UserProfile.objects.create(
+            user=new_user,
+            phone_number=phone,
+            natinality=natinality,
+        )
         reservation = Reservation.objects.create(
-            user=user,
-            space=space,
-            start_date=check_in_date,
-            end_date=check_out_date,
-            people=people,
-            temp_code=''.join(random.choices(string.digits, k=6))
+            user=new_user,
+            space=room.room_type,
+            start_date=start_date,
+            start_time=start_time,
+            end_date=end_date,
+            end_time=end_time,
+            people=1
+        )
+        check_in = CheckIn.objects.create(
+            user=new_user,
+            hotel_room=room,
+            reservation=reservation,
+            check_in_date=now().date(),
+            check_in_time=check_in_time,
+            check_out_date=end_date,
+            check_out_time=end_time,
+            temp_code=temp_code
+        )
+
+
+        send_mail(
+            subject="호텔 체크인 임시 코드 발급",
+            message=f"안녕하세요,\n\n임시 로그인 코드는 {temp_code} 입니다.",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
         )
 
         return Response({
-            'id': reservation.id,
-            'user': reservation.user.username,
-            'space': reservation.space.name,
-            'check_in_date': reservation.start_date,
-            'check_out_date': reservation.end_date,
-            'temp_code': reservation.temp_code
+            "message": "워크인 고객 체크인 완료",
+            "user_id": new_user.id,
+            "temp_code": check_in.temp_code
         }, status=status.HTTP_201_CREATED)

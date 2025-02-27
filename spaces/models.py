@@ -3,13 +3,13 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
-# BaseSpace를 추상 모델이 아니라 구체 모델로 변경
 class BaseSpace(gis_models.Model):
     name = models.CharField(max_length=255, verbose_name='이름')
     location = gis_models.PointField(geography=True, verbose_name='위치')
     address = models.CharField(max_length=255, verbose_name='주소')
     phone = models.CharField(max_length=20, verbose_name='전화번호')
     introduction = models.TextField(verbose_name='소개글')
+    is_featured = models.BooleanField(default=False, verbose_name='상단 노출 여부')
     managers = models.ManyToManyField(
         User,
         blank=True,
@@ -24,7 +24,7 @@ class BaseSpace(gis_models.Model):
 
 class BaseSpacePhoto(models.Model):
     basespace = models.ForeignKey(BaseSpace, on_delete=models.CASCADE, related_name='photos')
-    image = models.ImageField(upload_to='basespace_photos/', verbose_name='공간 사진')
+    image = models.ImageField(upload_to='photos/basespace_photos/', verbose_name='공간 사진')
 
     def __str__(self):
         return f"Photo for {self.basespace.name}"
@@ -68,8 +68,7 @@ class Service(models.Model):
     def __str__(self):
         return f"{self.name} for {self.basespace.name}"
 
-# Space: 예약 가능한 구체적인 단위(예: 호텔의 객실, 식당의 테이블 등)
-# BaseSpace와 일반 ForeignKey로 연결하여 어느 공간에 속하는지 지정합니다.
+
 class Space(models.Model):
     name = models.CharField(max_length=255, verbose_name='호실 또는 테이블명')
     description = models.TextField(blank=True, verbose_name='설명')
@@ -80,6 +79,15 @@ class Space(models.Model):
 
     def __str__(self):
         return f"{self.name} at {self.basespace.name}"
+
+
+# SpacePhoto 모델: 한 Space에 여러 사진을 연결하는 1:N 관계를 구성합니다.
+class SpacePhoto(models.Model):
+    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name='photos')
+    image = models.ImageField(upload_to='photos/space_photos/')
+
+    def __str__(self):
+        return f"Photo for {self.space.name}"
 
 
 class HotelRoomType(Space):
@@ -94,18 +102,30 @@ class HotelRoom(models.Model):
     room_type = models.ForeignKey(HotelRoomType, on_delete=models.CASCADE, related_name='rooms')
     floor = models.IntegerField(verbose_name="층", null=True, blank=True)
     room_number = models.CharField(max_length=50, verbose_name="호실", null=True, blank=True)
-    room_memo = models.TextField(verbose_name="객실 메모", null=True, blank=True)
+    status = models.CharField(max_length=50, verbose_name="객실 상태", null=True, blank=True)
 
     def __str__(self):
         return f"Room {self.room_number} (Floor {self.floor}) - {self.room_type.name}"
 
 
-# SpacePhoto 모델: 한 Space에 여러 사진을 연결하는 1:N 관계를 구성합니다.
-class SpacePhoto(models.Model):
-    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name='photos')
-    image = models.ImageField(upload_to='space_photos/')
+class HotelRoomMemo(models.Model):
+    hotel_room = models.ForeignKey(HotelRoom, on_delete=models.CASCADE, related_name='memos')
+    memo_date = models.DateField(verbose_name="메모 날짜")
+    memo_content = models.TextField(verbose_name="메모 내용")
 
     def __str__(self):
-        return f"Photo for {self.space.name}"
+        return f"Memo on {self.memo_date} for Room {self.hotel_room.room_number}"
+
+
+class HotelRoomLog(models.Model):
+    hotel_room = models.ForeignKey(HotelRoom, on_delete=models.CASCADE, related_name='logs')
+    log_date = models.DateTimeField(auto_now_add=True, verbose_name="로그 날짜")
+    log_content = models.TextField(verbose_name="로그 내용")
+
+    def __str__(self):
+        return f"Log on {self.log_date} for Room {self.hotel_room.room_number}"
+
+
+
 
 

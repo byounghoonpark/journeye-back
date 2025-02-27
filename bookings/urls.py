@@ -1,6 +1,8 @@
-from django.urls import path
-from .views import CheckInCreateView
-
+from django.urls import path, include
+from .views import CheckInViewSet
+from rest_framework import routers
+router = routers.DefaultRouter()
+router.register(r'checkin', CheckInViewSet, basename='checkin')
 urlpatterns = [
-    path('checkin/', CheckInCreateView.as_view(), name='checkin_create'),
+    path('', include(router.urls)),
 ]

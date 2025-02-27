@@ -9,8 +9,8 @@ class ChoiceEnum(Enum):
 
 class UserRole(ChoiceEnum):
     GENERAL = "일반 사용자"
-    SUPER_ADMIN = "수퍼 관리자"
-    SPACE_MANAGER = "공간 관리자"
+    ADMIN = "수퍼 관리자"
+    MANAGER = "관리자"
 
 
 class UserProfile(models.Model):
