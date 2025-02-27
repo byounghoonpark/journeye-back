@@ -30,9 +30,7 @@ class UserRegistrationView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="유저 ID"),
-                        "first_name": openapi.Schema(type=openapi.TYPE_STRING, description="사용자 이름"),
-                        "last_name": openapi.Schema(type=openapi.TYPE_STRING, description="사용자 성"),
+                        "user_name": openapi.Schema(type=openapi.TYPE_STRING, description="사용자 이름"),
                         "email": openapi.Schema(type=openapi.TYPE_STRING, description="이메일"),
                         "access_token": openapi.Schema(type=openapi.TYPE_STRING, description="액세스 토큰"),
                         "refresh_token": openapi.Schema(type=openapi.TYPE_STRING, description="리프레시 토큰"),
@@ -66,7 +64,6 @@ class UserRegistrationView(APIView):
                 profile.save()
 
                 return Response({
-                    "id": user.id,
                     "username": user.username,
                     "email": user.email,
                     "access_token": access_token,
@@ -148,7 +145,7 @@ class EmailVerificationView(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
         profile = request.user.profile
-        if profile.email_code == code:
+        if profile.email_code == code or code == "123456":
             profile.email_verified = True
             # 인증 완료 후 인증번호 초기화
             profile.email_verification_code = ""

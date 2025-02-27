@@ -2,6 +2,8 @@ from pathlib import Path
 import os
 from datetime import timedelta
 import json
+import sentry_sdk
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Quick-start development settings - unsuitable for production
@@ -191,3 +193,15 @@ EMAIL_USE_TLS = secret_config['EMAIL_USE_TLS']
 EMAIL_HOST_USER = secret_config['EMAIL_HOST_USER']
 EMAIL_HOST_PASSWORD = secret_config['EMAIL_HOST_PASSWORD']
 DEFAULT_FROM_EMAIL = secret_config['DEFAULT_FROM_EMAIL']
+
+
+sentry_sdk.init(
+    dsn="https://d03ae81cfd030d715717aa27a9ec8bac@sentry.alluser.net/3",
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for tracing.
+    traces_sample_rate=1.0,
+    # Set profiles_sample_rate to 1.0 to profile 100%
+    # of sampled transactions.
+    # We recommend adjusting this value in production.
+    profiles_sample_rate=1.0,
+)

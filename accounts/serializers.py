@@ -11,6 +11,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = [
             'profile_picture',
             'nationality',
+            'phone_number'
         ]
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -18,26 +19,28 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         required=True,
         validators=[UniqueValidator(queryset=User.objects.all(), message="이미 등록된 이메일입니다.")]
     )
+    phone_number = serializers.CharField(required=False, allow_blank=True)
     profile_picture = serializers.ImageField(required=False)
     nationality = serializers.CharField(max_length=100, required=False)
-    first_name = serializers.CharField(max_length=30, required=True)
-    last_name = serializers.CharField(max_length=30, required=True)
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'profile_picture', 'nationality', 'first_name', 'last_name']
+        fields = ['email', 'password', 'profile_picture', 'nationality', 'first_name', 'last_name', 'phone_number']
 
     def create(self, validated_data):
         username = validated_data['first_name'] + ' ' + validated_data['last_name']
         user = User.objects.create_user(
             username=username,
             email=validated_data['email'],
-            password=validated_data['password']
+            password=validated_data['password'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name']
         )
         UserProfile.objects.create(
             user=user,
             profile_picture=validated_data.get('profile_picture'),
             nationality=validated_data.get('nationality'),
+            phone_number=validated_data.get('phone_number'),
             role='GENERAL',
             email_verified=False,
             phone_verified=False

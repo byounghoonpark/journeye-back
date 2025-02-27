@@ -73,12 +73,32 @@ class Service(models.Model):
 class Space(models.Model):
     name = models.CharField(max_length=255, verbose_name='호실 또는 테이블명')
     description = models.TextField(blank=True, verbose_name='설명')
+    # price 테이블 따로 빼서 시즌별 요금제 바뀔수있어야함
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='가격')
     capacity = models.PositiveIntegerField(null=True, blank=True, verbose_name='수용 인원')
     basespace = models.ForeignKey(BaseSpace, on_delete=models.CASCADE, related_name='spaces')
 
     def __str__(self):
         return f"{self.name} at {self.basespace.name}"
+
+
+class HotelRoomType(Space):
+    view = models.CharField(max_length=255, verbose_name="객실 뷰", blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.view})" if self.view else self.name
+
+
+# 실제 호텔 객실: HotelRoomType과 1:n 관계로 연결되어 실제 객실 정보를 저장합니다.
+class HotelRoom(models.Model):
+    room_type = models.ForeignKey(HotelRoomType, on_delete=models.CASCADE, related_name='rooms')
+    floor = models.IntegerField(verbose_name="층", null=True, blank=True)
+    room_number = models.CharField(max_length=50, verbose_name="호실", null=True, blank=True)
+    room_memo = models.TextField(verbose_name="객실 메모", null=True, blank=True)
+
+    def __str__(self):
+        return f"Room {self.room_number} (Floor {self.floor}) - {self.room_type.name}"
+
 
 # SpacePhoto 모델: 한 Space에 여러 사진을 연결하는 1:N 관계를 구성합니다.
 class SpacePhoto(models.Model):

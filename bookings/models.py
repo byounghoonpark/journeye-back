@@ -31,25 +31,25 @@ class Reservation(models.Model):
         return f"Reservation {self.id} for {self.space.name} by {self.user.username}"
 
 
-# class CheckIn(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='checkins')
-#     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name='checkins')
-#     check_in_date = models.DateField(help_text="체크인 날짜", verbose_name='체크인 날짜')
-#     check_out_date = models.DateField(help_text="체크아웃 날짜", verbose_name='체크아웃 날짜')
-#     temp_code = models.CharField(max_length=6, unique=True, verbose_name='임시번호')
-#     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성일')
-#
-#     def save(self, *args, **kwargs):
-#         if not self.temp_code:
-#
-#             self.temp_code = ''.join(random.choices(string.digits, k=6))
-#         super().save(*args, **kwargs)
-#
-#     def is_valid(self):
-#         return self.check_out_date >= datetime.now().date()
-#
-#     def __str__(self):
-#         return f"CheckIn {self.id} for {self.user.username} at {self.space.name}"
+class CheckIn(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='checkins')
+    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name='checkins')
+    check_in_date = models.DateField(help_text="체크인 날짜", verbose_name='체크인 날짜')
+    check_out_date = models.DateField(help_text="체크아웃 날짜", verbose_name='체크아웃 날짜')
+    temp_code = models.CharField(max_length=6, unique=True, verbose_name='임시번호')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성일')
+
+    def save(self, *args, **kwargs):
+        if not self.temp_code:
+
+            self.temp_code = ''.join(random.choices(string.digits, k=6))
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        return self.check_out_date >= datetime.now().date()
+
+    def __str__(self):
+        return f"CheckIn {self.id} for {self.user.username} at {self.space.name}"
 
 
 class Review(models.Model):
