@@ -3,8 +3,8 @@ from spaces.models import Hotel, SpacePhoto, HotelRoom, HotelRoomType, BaseSpace
 from django.contrib.gis.geos import Point
 
 class HotelSerializer(serializers.ModelSerializer):
-    latitude = serializers.SerializerMethodField()
-    longitude = serializers.SerializerMethodField()
+    latitude = serializers.FloatField(required=True, write_only=True, help_text="위도 (예: 37.5665)")
+    longitude = serializers.FloatField(required=True, write_only=True, help_text="경도 (예: 126.9780)")
     photos = serializers.SerializerMethodField()
 
     class Meta:

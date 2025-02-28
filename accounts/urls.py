@@ -1,11 +1,17 @@
 from django.urls import path
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,  # 로그인 (JWT 발급)
     TokenRefreshView,  # 액세스 토큰 갱신
     TokenVerifyView,  # JWT 토큰 유효성 검사
 )
-from .views import UserRegistrationView, AssignSpaceManagerView, EmailVerificationView, SendEmailVerificationView, \
-    LoggedInUserDetailView, EmailTokenObtainPairView
+from .views import (
+    UserRegistrationView,
+    AssignSpaceManagerView,
+    EmailVerificationView,
+    SendEmailVerificationView,
+    LoggedInUserDetailView,
+    EmailTokenObtainPairView,
+    EmailCodeLoginView
+)
 
 urlpatterns = [
     path("register/", UserRegistrationView.as_view(), name="user-register"),
@@ -16,4 +22,5 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),  # 액세스 토큰 갱신
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),  # 토큰 검증
     path('user/me/', LoggedInUserDetailView.as_view(), name='내 정보 조회'),
+    path('login/email-code/', EmailCodeLoginView.as_view(), name='email_code_login'),
 ]

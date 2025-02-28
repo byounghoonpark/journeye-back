@@ -215,3 +215,54 @@ class EmailTokenObtainPairView(TokenObtainPairView):
     )
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
+
+
+class EmailCodeLoginView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        operation_description="이메일 코드로 로그인하여 JWT 토큰 발급 API",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "email_code": openapi.Schema(type=openapi.TYPE_STRING, description="이메일 인증 코드")
+            },
+            required=["email_code"]
+        ),
+        responses={
+            200: openapi.Response(
+                description="로그인 성공",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "access_token": openapi.Schema(type=openapi.TYPE_STRING, description="액세스 토큰"),
+                        "refresh_token": openapi.Schema(type=openapi.TYPE_STRING, description="리프레시 토큰"),
+                        "message": openapi.Schema(type=openapi.TYPE_STRING, description="응답 메시지"),
+                    },
+                ),
+            ),
+            400: openapi.Response(description="잘못된 요청"),
+            404: openapi.Response(description="사용자를 찾을 수 없음"),
+        }
+    )
+    def post(self, request):
+        email_code = request.data.get("email_code")
+        if not email_code:
+            return Response({"message": "이메일 인증 코드를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            profile = UserProfile.objects.get(email_code=email_code)
+            user = profile.user
+        except UserProfile.DoesNotExist:
+            return Response({"message": "유효하지 않은 이메일 인증 코드입니다."}, status=status.HTTP_404_NOT_FOUND)
+
+        # JWT 토큰 생성
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        return Response({
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "message": "로그인 성공"
+        }, status=status.HTTP_200_OK)

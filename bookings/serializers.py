@@ -2,6 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import CheckIn, Reservation
 from accounts.models import UserProfile
+from django.utils.timezone import now
+
 
 class UserSerializer(serializers.ModelSerializer):
     """워크인 고객 정보를 저장하는 시리얼라이저"""
@@ -51,3 +53,14 @@ class CheckInResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = CheckIn
         fields = ['id', 'user', 'reservation', 'check_in_date', 'check_in_time', 'check_out_date', 'check_out_time', 'temp_code']
+
+
+class CheckOutRequestSerializer(serializers.Serializer):
+    room_number = serializers.CharField(required=True, help_text="체크아웃할 객실 번호")
+
+    def validate(self, data):
+        """현재 체크인 중인 고객이 있는지 확인"""
+        check_in = CheckIn.objects.filter(hotel_room__room_number=data["room_number"], check_out_date__gte=now().date()).first()
+        if not check_in:
+            raise serializers.ValidationError("현재 체크인 중인 고객이 없습니다.")
+        return data
