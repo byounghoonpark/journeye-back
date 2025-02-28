@@ -15,7 +15,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """워크인 고객의 추가 정보 (국적, 전화번호 등)"""
     class Meta:
         model = UserProfile
-        fields = ['phone_number', 'natinality']
+        fields = ['phone_number', 'nationality']
 
 class ReservationSerializer(serializers.ModelSerializer):
     """예약 정보를 저장하는 시리얼라이저"""
@@ -39,7 +39,7 @@ class CheckInRequestSerializer(serializers.Serializer):
     start_time = serializers.TimeField(required=False, help_text="체크인 시간 (워크인 고객인 경우)")
     end_date = serializers.DateField(required=True, help_text="체크아웃 날짜")
     end_time = serializers.TimeField(required=True, help_text="체크아웃 시간")
-    natinality = serializers.CharField(required=False, help_text="국적 (워크인 고객인 경우)")
+    nationality = serializers.CharField(required=False, help_text="국적 (워크인 고객인 경우)")
     first_name = serializers.CharField(required=False, help_text="이름 (워크인 고객인 경우)")
     last_name = serializers.CharField(required=False, help_text="성 (워크인 고객인 경우)")
     email = serializers.EmailField(required=False, help_text="이메일 (워크인 고객인 경우)")

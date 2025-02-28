@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.contrib.auth.hashers import check_password
 from django.core.mail import send_mail
 from django.db import transaction
 from drf_yasg import openapi
@@ -9,12 +10,14 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-
-from accounts.models import UserProfile
-from .serializers import UserRegistrationSerializer, SpaceManagerAssignSerializer, UserDetailSerializer, EmailTokenObtainPairSerializer
 from rest_framework.generics import get_object_or_404, RetrieveAPIView
 from rest_framework.parsers import MultiPartParser, FormParser
-import random
+
+from accounts.models import UserProfile
+from spaces.models import Hotel, BaseSpace
+from .serializers import UserRegistrationSerializer, SpaceManagerAssignSerializer, UserDetailSerializer, EmailTokenObtainPairSerializer
+
+import random, string
 from hotel_admin import settings
 
 class UserRegistrationView(APIView):
@@ -168,28 +171,52 @@ class AssignSpaceManagerView(APIView):
 
     @swagger_auto_schema(
         operation_description="유저를 공간 관리자로 변경하는 API (어드민만 가능)",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "user_email": openapi.Schema(type=openapi.TYPE_INTEGER, description="유저 이메일"),
+                "basespace_id": openapi.Schema(type=openapi.TYPE_INTEGER, description="공간 ID")
+            },
+            required=["user_email", "basespace_id"]
+        ),
         responses={
             200: openapi.Response(description="공간 관리자로 설정됨"),
             400: openapi.Response(description="잘못된 요청"),
             403: openapi.Response(description="권한 없음 (어드민만 가능)"),
+            404: openapi.Response(description="유저 또는 공간을 찾을 수 없음"),
         },
     )
-    def post(self, request, user_id):
+    def post(self, request):
         """ JWT 기반 공간 관리자 권한 부여 API """
-        user = get_object_or_404(User, id=user_id)
+        user_email = request.data.get("user_email")
+        basespace_id = request.data.get("basespace_id")
+
+        if not user_email or not basespace_id:
+            return Response({"message": "유저 이메일과 공간 ID를 모두 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = get_object_or_404(User, email=user_email)
         user_profile = get_object_or_404(UserProfile, user=user)
+        basespace = get_object_or_404(BaseSpace, id=basespace_id)
 
-        if user_profile.role == "SPACE_MANAGER":
-            return Response({"message": "이미 공간 관리자입니다."}, status=status.HTTP_400_BAD_REQUEST)
+        if user_profile.role == "MANAGER":
+            # 해당 BaseSpace의 관리자 목록에 이미 추가되어 있는지 확인
+            if basespace.managers.filter(id=user.id).exists():
+                return Response({"message": f"{user.username}님은 이미 해당 공간({basespace.name})의 관리자입니다."},
+                                status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # MANAGER로 역할 변경
+            serializer = SpaceManagerAssignSerializer(user_profile, data={"role": "MANAGER"}, partial=True)
+            if serializer.is_valid():
+                serializer.save()
 
-        serializer = SpaceManagerAssignSerializer(user_profile, data={"role": "SPACE_MANAGER"}, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": f"{user.username}님이 공간 관리자로 설정되었습니다."}, status=status.HTTP_200_OK)
+            # 공간 관리자 목록(BaseSpace.managers)에 유저 추가
+        basespace.managers.add(user)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            "message": f"{user.username}님이 '{basespace.name}' 공간의 관리자로 설정되었습니다."
+        }, status=status.HTTP_200_OK)
 
-class EmailTokenObtainPairView(TokenObtainPairView):
+class EmailLoginView(TokenObtainPairView):
     serializer_class = EmailTokenObtainPairSerializer
 
     @swagger_auto_schema(
@@ -214,7 +241,21 @@ class EmailTokenObtainPairView(TokenObtainPairView):
         }
     )
     def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
+        response = super().post(request, *args, **kwargs)
+
+        # 로그인 성공 시, 추가 데이터 조회
+        if response.status_code == 200:
+            user = User.objects.get(email=request.data["email"])  # 이메일로 사용자 조회
+
+            # 사용자가 관리하는 호텔 조회
+            managed_basespaces = BaseSpace.objects.filter(managers=user).values("id", "name")
+            basespaces_list = list(managed_basespaces)  # QuerySet을 리스트로 변환
+
+            # 호텔 정보가 있다면 응답에 추가
+            if basespaces_list:
+                response.data["managed_basespaces"] = basespaces_list
+
+        return response
 
 
 class EmailCodeLoginView(APIView):
@@ -266,3 +307,95 @@ class EmailCodeLoginView(APIView):
             "refresh_token": refresh_token,
             "message": "로그인 성공"
         }, status=status.HTTP_200_OK)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_description="비밀번호 변경 API",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "current_password": openapi.Schema(type=openapi.TYPE_STRING, format="password",
+                                                   description="현재 비밀번호"),
+                "new_password": openapi.Schema(type=openapi.TYPE_STRING, format="password", description="새로운 비밀번호"),
+                "confirm_password": openapi.Schema(type=openapi.TYPE_STRING, format="password",
+                                                   description="새로운 비밀번호 확인"),
+            },
+            required=["current_password", "new_password", "confirm_password"]
+        ),
+        responses={
+            200: openapi.Response(description="비밀번호 변경 성공"),
+            400: openapi.Response(description="잘못된 요청"),
+            403: openapi.Response(description="현재 비밀번호가 일치하지 않음"),
+        }
+    )
+    def post(self, request):
+        """비밀번호 변경 API"""
+        user = request.user
+        current_password = request.data.get("current_password")
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
+
+        # 현재 비밀번호 확인
+        if not check_password(current_password, user.password):
+            return Response({"message": "현재 비밀번호가 올바르지 않습니다."}, status=status.HTTP_403_FORBIDDEN)
+
+        # 새 비밀번호 일치 확인
+        if new_password != confirm_password:
+            return Response({"message": "새 비밀번호가 일치하지 않습니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 비밀번호 변경
+        user.set_password(new_password)
+        user.save()
+
+        # 기존 JWT 토큰 무효화 (강제 로그아웃)
+        RefreshToken.for_user(user)
+
+        return Response({"message": "비밀번호가 성공적으로 변경되었습니다."}, status=status.HTTP_200_OK)
+
+
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+    @swagger_auto_schema(
+        operation_description="이메일을 입력하면 비밀번호를 난수로 초기화하고 메일로 전송하는 API",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "email": openapi.Schema(type=openapi.TYPE_STRING, description="비밀번호 초기화를 요청할 이메일")
+            },
+            required=["email"]
+        ),
+        responses={
+            200: openapi.Response(description="임시 비밀번호가 이메일로 전송되었습니다."),
+            400: openapi.Response(description="잘못된 요청"),
+            404: openapi.Response(description="등록되지 않은 이메일")
+        }
+    )
+    def post(self, request):
+        """이메일을 입력하면 비밀번호를 난수로 초기화하고 메일로 전송하는 API"""
+        email = request.data.get("email")
+
+        if not email:
+            return Response({"message": "이메일을 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"message": "등록되지 않은 이메일입니다."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 10자리 난수 비밀번호 생성
+        temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+
+        # 비밀번호 변경
+        user.set_password(temp_password)
+        user.save()
+
+        # 이메일 전송
+        subject = "비밀번호 초기화 안내"
+        message = f"안녕하세요,\n\n새로운 임시 비밀번호는 다음과 같습니다:\n\n{temp_password}\n\n로그인 후 반드시 비밀번호를 변경해주세요."
+        from_email = settings.DEFAULT_FROM_EMAIL
+        send_mail(subject, message, from_email, [email], fail_silently=False)
+
+        return Response({"message": "임시 비밀번호가 이메일로 전송되었습니다."}, status=status.HTTP_200_OK)

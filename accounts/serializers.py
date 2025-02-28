@@ -53,7 +53,7 @@ class SpaceManagerAssignSerializer(serializers.ModelSerializer):
         fields = ["role"]
 
     def update(self, instance, validated_data):
-        instance.role = "SPACE_MANAGER"
+        instance.role = "MANAGER"
         instance.save()
         return instance
 

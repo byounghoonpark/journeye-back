@@ -1,8 +1,9 @@
-from django.urls import path, include
-from .views import CheckInViewSet
+from django.urls import path
+from .views import CheckInAndOutViewSet
 from rest_framework import routers
 router = routers.DefaultRouter()
-router.register(r'checkin', CheckInViewSet, basename='checkin')
+
 urlpatterns = [
-    path('', include(router.urls)),
+    path("checkin/", CheckInAndOutViewSet.as_view({"post": "check_in"}), name="checkin"),
+    path("checkout/", CheckInAndOutViewSet.as_view({"post": "check_out"}), name="checkout"),
 ]

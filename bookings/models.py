@@ -35,18 +35,16 @@ class CheckIn(models.Model):
     check_out_time = models.TimeField(help_text="체크아웃 시간", verbose_name='체크아웃 시간', null=True, blank=True)
     temp_code = models.CharField(max_length=6, unique=True, verbose_name='임시번호')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성일')
+    checked_out = models.BooleanField(default=False, help_text="체크아웃 여부", verbose_name='체크아웃 여부')
 
     def save(self, *args, **kwargs):
-        if not self.temp_code:
-
-            self.temp_code = ''.join(random.choices(string.digits, k=6))
         super().save(*args, **kwargs)
 
     def is_valid(self):
         return self.check_out_date >= datetime.now().date()
 
     def __str__(self):
-        return f"CheckIn {self.id} for {self.user.username} at {self.space.name}"
+        return f"CheckIn {self.id} for {self.user.username} at {self.hotel_room.room_number}"
 
 
 class Review(models.Model):

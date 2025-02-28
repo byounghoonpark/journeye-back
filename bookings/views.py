@@ -27,7 +27,7 @@ def generate_unique_temp_code():
             return temp_code
 
 
-class CheckInViewSet(viewsets.ViewSet):
+class CheckInAndOutViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated, IsAdminOrManager]
 
     @swagger_auto_schema(
@@ -41,7 +41,7 @@ class CheckInViewSet(viewsets.ViewSet):
         operation_description="예약된 고객 또는 워크인 고객의 체크인을 처리합니다.",
     )
     @transaction.atomic
-    def create(self, request):
+    def check_in(self, request):
         """체크인 생성 로직"""
         user = request.user
         serializer = CheckInRequestSerializer(data=request.data)
@@ -62,19 +62,28 @@ class CheckInViewSet(viewsets.ViewSet):
         # 워크인 고객 체크인
         return self.check_in_walkin_customer(validated_data, room)
 
-    transaction.atomic
-
+    @swagger_auto_schema(
+        request_body=CheckOutRequestSerializer,
+        responses={
+            200: openapi.Response(description="체크아웃 완료"),
+            400: openapi.Response(description="잘못된 요청 (체크인 내역 없음)"),
+            403: openapi.Response(description="권한 없음"),
+        },
+        operation_summary="체크아웃 처리",
+        operation_description="객실 번호를 입력하면 해당 객실의 현재 체크인 고객을 체크아웃합니다.",
+    )
+    @transaction.atomic
     def check_out(self, request):
         """객실 번호로 체크아웃 처리"""
         serializer = CheckOutRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
 
-        # 현재 체크인 중인 고객 찾기
+        # 현재 체크인 중인 고객 찾기 (체크아웃되지 않은 고객)
         check_in = CheckIn.objects.filter(
             hotel_room__room_number=validated_data["room_number"],
-            check_out_date__gte=now().date()
-        ).first()
+            checked_out=False  # 🚨 체크아웃되지 않은 고객만 검색
+        ).order_by('-check_in_date').first()  # 가장 최근 체크인한 고객 우선 선택
 
         if not check_in:
             return Response({"error": "현재 체크인 중인 고객이 없습니다."}, status=status.HTTP_400_BAD_REQUEST)
@@ -82,10 +91,11 @@ class CheckInViewSet(viewsets.ViewSet):
         # 현재 시간 기준으로 체크아웃 처리
         check_in.check_out_date = now().date()
         check_in.check_out_time = now().time()
+        check_in.checked_out = True
         check_in.save()
 
         # 객실 상태 변경 및 로그 기록
-        self.update_room_status(check_in.hotel_room, check_in.user.username, "체크아웃")
+        self.update_room_status(check_in.hotel_room, check_in.user.username, "청소필요")
 
         return Response({"message": "체크아웃 완료"}, status=status.HTTP_200_OK)
 
@@ -95,9 +105,16 @@ class CheckInViewSet(viewsets.ViewSet):
         room = get_object_or_404(HotelRoom, room_number=room_number, room_type__basespace=hotel)
         return hotel, room
 
-    @transaction.atomic
     def check_in_reserved_customer(self, validated_data, room):
         """예약된 고객 체크인 처리"""
+        existing_check_in = CheckIn.objects.filter(
+            hotel_room=room,
+            checked_out=False
+        ).exists()
+
+        if existing_check_in:
+            return Response({"error": "현재 체크인된 고객이 있어 체크인할 수 없습니다."}, status=status.HTTP_400_BAD_REQUEST)
+
         reservation = get_object_or_404(
             Reservation,
             id=validated_data["reservation_id"],
@@ -114,6 +131,14 @@ class CheckInViewSet(viewsets.ViewSet):
 
     def check_in_walkin_customer(self, validated_data, room):
         """워크인 고객 체크인 처리"""
+        existing_check_in = CheckIn.objects.filter(
+            hotel_room=room,
+            checked_out=False
+        ).exists()
+
+        if existing_check_in:
+            return Response({"error": "현재 체크인된 고객이 있어 체크인할 수 없습니다."}, status=status.HTTP_400_BAD_REQUEST)
+
         temp_code = generate_unique_temp_code()
 
         new_user = User.objects.create_user(

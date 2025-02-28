@@ -1,7 +1,4 @@
-from http.client import responses
-
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -9,7 +6,7 @@ from rest_framework.viewsets import ModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 
 from accounts.permissions import IsAdminOrManager
-from .models import HotelRoom, HotelRoomType, Hotel, BaseSpacePhoto, SpacePhoto
+from .models import HotelRoom, HotelRoomType, Hotel, SpacePhoto
 from .serializers import HotelRoomSerializer, HotelRoomTypeSerializer, HotelSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -53,23 +50,37 @@ class HotelRoomTypeViewSet(ModelViewSet):
     queryset = HotelRoomType.objects.all()
     serializer_class = HotelRoomTypeSerializer
     parser_classes = [MultiPartParser, FormParser]
-    filter_backends = [DjangoFilterBackend]  # ✅ 필터링 추가
-    filterset_fields = ["basespace"]  # ✅ basespace_id 필터링 가능
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["basespace"]
 
     def get_queryset(self):
-        """
-        ✅ basespace_id 쿼리 파라미터가 있으면 필터링
-        """
         queryset = super().get_queryset()
-        basespace_id = self.request.query_params.get("basespace")
-        if basespace_id:
-            queryset = queryset.filter(basespace_id=basespace_id)
+
+        if self.action == "list":
+            basespace_id = self.request.query_params.get("basespace_id")
+            if basespace_id:
+                queryset = queryset.filter(basespace_id=basespace_id)
+
         return queryset
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [AllowAny()]
         return [IsAuthenticated(), IsAdminOrManager()]
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                "basespace_id",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_INTEGER,
+                description="조회할 특정 BaseSpace ID (필터링, 리스트 조회에서만 사용)",
+                required=False
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     @swagger_auto_schema(
         request_body=HotelRoomTypeSerializer,
