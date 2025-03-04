@@ -36,6 +36,7 @@ class CheckIn(models.Model):
     temp_code = models.CharField(max_length=6, unique=True, verbose_name='임시번호')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성일')
     checked_out = models.BooleanField(default=False, help_text="체크아웃 여부", verbose_name='체크아웃 여부')
+    is_day_use = models.BooleanField(default=False, help_text="대실 여부", verbose_name='대실 여부')
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

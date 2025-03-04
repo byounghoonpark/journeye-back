@@ -6,7 +6,8 @@ from rest_framework.viewsets import ModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 
 from accounts.permissions import IsAdminOrManager
-from .models import HotelRoom, HotelRoomType, Hotel, SpacePhoto, Floor
+from bookings.serializers import HotelRoomMemoSerializer, HotelRoomHistorySerializer
+from .models import HotelRoom, HotelRoomType, Hotel, SpacePhoto, Floor, HotelRoomHistory, HotelRoomMemo
 from .serializers import HotelRoomSerializer, HotelRoomTypeSerializer, HotelSerializer, FloorSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -111,6 +112,63 @@ class HotelRoomViewSet(ModelViewSet):
     serializer_class = HotelRoomSerializer
     permission_classes = [IsAuthenticated, IsAdminOrManager]
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        basespace_id = self.request.query_params.get('basespace_id')
+        if basespace_id:
+            queryset = queryset.filter(room_type__basespace_id=basespace_id)
+        return queryset
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'basespace_id',
+                openapi.IN_QUERY,
+                description="특정 BaseSpace ID 필터 (예: ?basespace_id=1)",
+                type=openapi.TYPE_INTEGER
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        response = super().partial_update(request, *args, **kwargs)
+
+        if 'status' in request.data:
+            HotelRoomHistory.objects.create(
+                hotel_room=instance,
+                history_content=instance.status
+            )
+
+        return response
+
+class HotelRoomMemoViewSet(ModelViewSet):
+    queryset = HotelRoomMemo.objects.all().order_by('-id')
+    serializer_class = HotelRoomMemoSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrManager]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        room_id = self.request.query_params.get('room_id')
+        if room_id:
+            queryset = queryset.filter(hotel_room_id=room_id)
+        return queryset
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'room_id',
+                openapi.IN_QUERY,
+                description="특정 방 ID 필터 (예: ?room_id=1)",
+                type=openapi.TYPE_INTEGER
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
 
 class FloorViewSet(ModelViewSet):
     queryset = Floor.objects.all()
@@ -148,3 +206,29 @@ class FloorViewSet(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
+
+
+class HotelRoomHistoryViewSet(ModelViewSet):
+    queryset = HotelRoomHistory.objects.all().order_by('-id')
+    serializer_class = HotelRoomHistorySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        room_id = self.request.query_params.get('room_id')
+        if room_id:
+            queryset = queryset.filter(hotel_room_id=room_id)
+        return queryset
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'room_id',
+                openapi.IN_QUERY,
+                description="특정 방 ID 필터 (예: ?room_id=1)",
+                type=openapi.TYPE_INTEGER
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
