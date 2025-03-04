@@ -377,3 +377,72 @@ class RoomUsageViewSet(viewsets.ViewSet):
             }
 
         return Response(data, status=status.HTTP_200_OK)
+
+
+class HotelRoomStatusViewSet(viewsets.ViewSet):
+    """
+    특정 BaseSpace(호텔)에 대한 모든 객실 정보를 리스트로 조회합니다.
+    - 호실(room_number)
+    - 방타입(room_type)
+    - 방 상태: 체크인 여부에 따라 '대실'/'숙박'(기간) 혹은 DB상의 객실 상태
+    - 이용객 이름: 활성 체크인 시에만 표시
+    - 메모: HotelRoomMemo 중 가장 최근 메모
+    """
+    permission_classes = [IsAuthenticated, IsAdminOrManager]
+
+    def list(self, request):
+        # basespace_id를 쿼리 파라미터로 받아 특정 BaseSpace(호텔)의 객실만 조회
+        basespace_id = request.query_params.get('basespace_id')
+        if not basespace_id:
+            return Response({"error": "basespace_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # BaseSpace 조회
+        basespace = get_object_or_404(BaseSpace, id=basespace_id)
+        # 해당 BaseSpace에 속한 객실들
+        rooms = HotelRoom.objects.filter(room_type__basespace=basespace)
+
+        today = now().date()
+        result = []
+
+        for room in rooms:
+            # 오늘 기준 활성 체크인(체크아웃되지 않고, 날짜 범위가 오늘을 포함)
+            active_checkin = CheckIn.objects.filter(
+                hotel_room=room,
+                checked_out=False,
+                check_in_date__lte=today,
+                check_out_date__gte=today
+            ).first()
+
+            # 기본값 (활성 체크인이 없으면 DB상의 status 그대로)
+            occupant_name = ""
+            display_status = room.status or ""
+
+            # 활성 체크인이 있으면 상태/이용객명 갱신
+            if active_checkin:
+                occupant_name = active_checkin.user.get_full_name() or active_checkin.user.username
+                if active_checkin.is_day_use:
+                    # 대실
+                    display_status = (
+                        f"대실({active_checkin.check_in_date.strftime('%m/%d')} - "
+                        f"{active_checkin.check_out_date.strftime('%m/%d')})"
+                    )
+                else:
+                    # 숙박
+                    display_status = (
+                        f"숙박({active_checkin.check_in_date.strftime('%m/%d')} - "
+                        f"{active_checkin.check_out_date.strftime('%m/%d')})"
+                    )
+
+            # 가장 최근 메모 1개만
+            last_memo = HotelRoomMemo.objects.filter(hotel_room=room).order_by('-memo_date').first()
+            memo_content = last_memo.memo_content if last_memo else ""
+
+            result.append({
+                "room_number": room.room_number,
+                "room_type": room.room_type.name if room.room_type else "",
+                "status": display_status,  # 대실/숙박 여부 + 날짜, 또는 DB의 status
+                "occupant_name": occupant_name,
+                "memo": memo_content,
+            })
+
+        return Response(result, status=status.HTTP_200_OK)

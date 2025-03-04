@@ -132,6 +132,22 @@ class HotelRoomViewSet(ModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'room_type': openapi.Schema(type=openapi.TYPE_INTEGER, description='객실 타입의 ID'),
+                'floor': openapi.Schema(type=openapi.TYPE_INTEGER, description='층', nullable=True),
+                'room_number': openapi.Schema(type=openapi.TYPE_STRING, description='호실', maxLength=50, nullable=True),
+                'status': openapi.Schema(type=openapi.TYPE_STRING, description='객실 상태', maxLength=50, nullable=True),
+                'non_smoking': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='금연 여부')
+            },
+            required=['room_type']
+        )
+    )
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
         response = super().partial_update(request, *args, **kwargs)

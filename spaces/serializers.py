@@ -97,6 +97,8 @@ class HotelRoomTypeSerializer(serializers.ModelSerializer):
         return instance
 
 class HotelRoomSerializer(serializers.ModelSerializer):
+    room_type = serializers.PrimaryKeyRelatedField(queryset=HotelRoomType.objects.all())
+
     class Meta:
         model = HotelRoom
         fields = [
