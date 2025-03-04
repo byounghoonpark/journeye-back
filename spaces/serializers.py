@@ -110,6 +110,12 @@ class HotelRoomSerializer(serializers.ModelSerializer):
             'non_smoking'
         ]
 
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        # 반환 시 room_type 필드를 해당 룸타입의 이름으로 변경합니다.
+        rep['room_type'] = instance.room_type.name if instance.room_type else None
+        return rep
+
     def validate_room_type(self, value):
         # 요청한 사용자가 해당 호텔(BaseSpace) 관리자인지 확인
         user = self.context['request'].user

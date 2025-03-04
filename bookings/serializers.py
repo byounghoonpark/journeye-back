@@ -35,7 +35,7 @@ class CheckInRequestSerializer(serializers.Serializer):
     reservation_id = serializers.IntegerField(required=False, help_text="예약 ID (기존 예약 고객인 경우)")
     user_id = serializers.IntegerField(required=False, help_text="예약한 사용자 ID (기존 예약 고객인 경우)")
     hotel_id = serializers.IntegerField(required=True, help_text="체크인할 호텔 ID")
-    room_id = serializers.CharField(required=True, help_text="객실 ID")
+    room_id = serializers.IntegerField(required=True, help_text="객실 ID")
     is_day_use = serializers.BooleanField(required=False, help_text="대실 여부 (워크인 고객인 경우)")
     start_date = serializers.DateField(required=False, help_text="체크인 날짜 (워크인 고객인 경우)")
     start_time = serializers.TimeField(required=False, help_text="체크인 시간 (워크인 고객인 경우)")

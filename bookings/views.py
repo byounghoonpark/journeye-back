@@ -201,7 +201,7 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
         """객실 상태 업데이트 및 로그 추가"""
         HotelRoomUsage.objects.create(
             hotel_room=room,
-            log_content=status
+            usage_content=status
         )
 
     def send_checkin_email(self, email, temp_code):
@@ -327,6 +327,7 @@ class RoomUsageViewSet(viewsets.ViewSet):
                 }
                 for usage in usages
             ]
+            user_profile = UserProfile.objects.get(user=active_checkin.user)
             data = {
                 "이용정보": {
                     "대실여부": active_checkin.is_day_use,
@@ -341,8 +342,8 @@ class RoomUsageViewSet(viewsets.ViewSet):
                 "고객정보": {
                     "고객명": active_checkin.user.get_full_name() or active_checkin.user.username,
                     "고객이메일": active_checkin.user.email,
-                    "고객 국적": getattr(active_checkin.user, "nationality", ""),
-                    "고객전화번호": getattr(active_checkin.user, "phone", ""),
+                    "고객 국적": user_profile.nationality,
+                    "고객전화번호": user_profile.phone_number,
                 },
                 "이용내역": usage_list
             }
@@ -389,6 +390,29 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
     - 메모: HotelRoomMemo 중 가장 최근 메모
     """
     permission_classes = [IsAuthenticated, IsAdminOrManager]
+
+    @swagger_auto_schema(
+        operation_summary="객실 상태 리스트 조회",
+        operation_description=(
+                "특정 BaseSpace(호텔)에 대한 객실 상태를 조회합니다. "
+                "basespace_id 쿼리 파라미터를 통해 호텔을 식별하며, "
+                "객실별로 대실/숙박 여부, 이용객 이름, 메모 등을 반환합니다."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                name='basespace_id',
+                in_=openapi.IN_QUERY,
+                description='BaseSpace(호텔) ID (예: ?basespace_id=1)',
+                required=True,
+                type=openapi.TYPE_INTEGER
+            )
+        ],
+        responses={
+            200: openapi.Response(description="객실 상태 리스트 조회 성공"),
+            400: openapi.Response(description="basespace_id 파라미터 없음"),
+            404: openapi.Response(description="BaseSpace 혹은 해당 객실을 찾을 수 없음")
+        }
+    )
 
     def list(self, request):
         # basespace_id를 쿼리 파라미터로 받아 특정 BaseSpace(호텔)의 객실만 조회
