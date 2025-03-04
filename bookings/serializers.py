@@ -43,6 +43,7 @@ class CheckInRequestSerializer(serializers.Serializer):
     last_name = serializers.CharField(required=False, help_text="성 (워크인 고객인 경우)")
     email = serializers.EmailField(required=False, help_text="이메일 (워크인 고객인 경우)")
     phone = serializers.CharField(required=False, help_text="전화번호 (워크인 고객인 경우)")
+    people = serializers.CharField(required=False, help_text="인원 수 (워크인 고객인 경우)")
 
 class CheckInResponseSerializer(serializers.ModelSerializer):
     """체크인 응답 시리얼라이저"""

@@ -15,7 +15,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 
 from accounts.models import UserProfile
 from spaces.models import Hotel, BaseSpace
-from .serializers import UserRegistrationSerializer, SpaceManagerAssignSerializer, UserDetailSerializer, EmailTokenObtainPairSerializer
+from .serializers import UserRegistrationSerializer, SpaceManagerAssignSerializer, UserDetailSerializer, \
+    EmailTokenObtainPairSerializer, UserProfileUpdateSerializer
 
 import random, string
 from hotel_admin import settings
@@ -399,3 +400,69 @@ class ResetPasswordView(APIView):
         send_mail(subject, message, from_email, [email], fail_silently=False)
 
         return Response({"message": "임시 비밀번호가 이메일로 전송되었습니다."}, status=status.HTTP_200_OK)
+
+
+class UserProfileUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @swagger_auto_schema(
+        operation_description="회원 프로필 수정 API: 프로필 사진, 전화번호, 국적 수정",
+        request_body=UserProfileUpdateSerializer,
+        responses={
+            200: openapi.Response(
+                description="회원 프로필 수정 성공",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "username": openapi.Schema(type=openapi.TYPE_STRING, description="사용자 이름"),
+                        "email": openapi.Schema(type=openapi.TYPE_STRING, description="이메일"),
+                        "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="전화번호"),
+                        "nationality": openapi.Schema(type=openapi.TYPE_STRING, description="국적"),
+                        "profile_picture": openapi.Schema(type=openapi.TYPE_STRING, description="프로필 사진 URL"),
+                        "message": openapi.Schema(type=openapi.TYPE_STRING, description="응답 메시지"),
+                    },
+                ),
+            ),
+            400: openapi.Response(description="잘못된 요청"),
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                'profile_picture',
+                openapi.IN_FORM,
+                type=openapi.TYPE_FILE,
+                description='프로필 사진 파일'
+            ),
+            openapi.Parameter(
+                'phone_number',
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description='전화번호'
+            ),
+            openapi.Parameter(
+                'nationality',
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description='국적'
+            ),
+        ]
+    )
+    def patch(self, request):
+        """회원 프로필 수정 API (프로필 사진, 전화번호, 국적 수정)"""
+        user = request.user
+        profile = user.profile  # user와 1:1 연관된 UserProfile 객체
+
+        serializer = UserProfileUpdateSerializer(profile, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "username": user.username,
+                "email": user.email,
+                "phone_number": serializer.data.get("phone_number", profile.phone_number),
+                "nationality": serializer.data.get("nationality", profile.nationality),
+                "profile_picture": serializer.data.get(
+                    "profile_picture", profile.profile_picture.url if profile.profile_picture else None
+                ),
+                "message": "Profile updated successfully"
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

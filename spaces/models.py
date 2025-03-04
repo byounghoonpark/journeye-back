@@ -83,6 +83,7 @@ class Service(models.Model):
 
 class Space(models.Model):
     name = models.CharField(max_length=255, verbose_name='호실 또는 테이블명')
+    nickname = models.CharField(max_length=255, blank=True, null=True, verbose_name='별칭')
     description = models.TextField(blank=True, verbose_name='설명')
     # price 테이블 따로 빼서 시즌별 요금제 바뀔수있어야함
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='가격')
@@ -115,6 +116,7 @@ class HotelRoom(models.Model):
     floor = models.ForeignKey(Floor, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="층")
     room_number = models.CharField(max_length=50, verbose_name="호실", null=True, blank=True)
     status = models.CharField(max_length=50, verbose_name="객실 상태", null=True, blank=True)
+    non_smoking = models.BooleanField(default=True, verbose_name="금연 여부")
 
     def __str__(self):
         return f"Room {self.room_number} (Floor {self.floor}) - {self.room_type.name}"

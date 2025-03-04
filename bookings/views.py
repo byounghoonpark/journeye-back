@@ -84,7 +84,7 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
         # 현재 체크인 중인 고객 찾기 (체크아웃되지 않은 고객)
         check_in = CheckIn.objects.filter(
             hotel_room__room_number=validated_data["room_number"],
-            checked_out=False  # 🚨 체크아웃되지 않은 고객만 검색
+            checked_out=False
         ).order_by('-check_in_date').first()  # 가장 최근 체크인한 고객 우선 선택
 
         if not check_in:

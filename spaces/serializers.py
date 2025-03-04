@@ -61,7 +61,7 @@ class HotelRoomTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = HotelRoomType
         fields = [
-            "id", "name", "description", "price", "capacity",
+            "id", "name", "nickname", "description", "price", "capacity",
             "view", "photos", "basespace"
         ]
 
@@ -105,6 +105,7 @@ class HotelRoomSerializer(serializers.ModelSerializer):
             'floor',
             'room_number',
             'status',
+            'non_smoking'
         ]
 
     def validate_room_type(self, value):
