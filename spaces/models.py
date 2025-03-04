@@ -21,6 +21,18 @@ class BaseSpace(gis_models.Model):
     def __str__(self):
         return self.name
 
+class Floor(models.Model):
+    basespace = models.ForeignKey(BaseSpace, on_delete=models.CASCADE, related_name='floors')
+    floor_number = models.CharField(max_length=10, verbose_name="층 번호")
+    # 추가 정보가 필요하면 description 같은 필드를 더 넣을 수 있습니다.
+
+    class Meta:
+        unique_together = ('basespace', 'floor_number')
+        ordering = ['floor_number']
+
+    def __str__(self):
+        return f"{self.basespace.name} - {self.floor_number}층"
+
 
 class BaseSpacePhoto(models.Model):
     basespace = models.ForeignKey(BaseSpace, on_delete=models.CASCADE, related_name='photos')
@@ -100,7 +112,7 @@ class HotelRoomType(Space):
 # 실제 호텔 객실: HotelRoomType과 1:n 관계로 연결되어 실제 객실 정보를 저장합니다.
 class HotelRoom(models.Model):
     room_type = models.ForeignKey(HotelRoomType, on_delete=models.CASCADE, related_name='rooms')
-    floor = models.IntegerField(verbose_name="층", null=True, blank=True)
+    floor = models.ForeignKey(Floor, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="층")
     room_number = models.CharField(max_length=50, verbose_name="호실", null=True, blank=True)
     status = models.CharField(max_length=50, verbose_name="객실 상태", null=True, blank=True)
 
@@ -116,16 +128,22 @@ class HotelRoomMemo(models.Model):
     def __str__(self):
         return f"Memo on {self.memo_date} for Room {self.hotel_room.room_number}"
 
-
-class HotelRoomLog(models.Model):
-    hotel_room = models.ForeignKey(HotelRoom, on_delete=models.CASCADE, related_name='logs')
-    log_date = models.DateTimeField(auto_now_add=True, verbose_name="로그 날짜")
-    log_content = models.TextField(verbose_name="로그 내용")
+# HotelRoomHistory 모델: 객실 이력 정보를 저장합니다.
+class HotelRoomHistory(models.Model):
+    hotel_room = models.ForeignKey(HotelRoom, on_delete=models.CASCADE, related_name='histories')
+    history_date = models.DateTimeField(auto_now_add=True, verbose_name="이력 날짜")
+    history_content = models.TextField(verbose_name="이력 내용")
 
     def __str__(self):
-        return f"Log on {self.log_date} for Room {self.hotel_room.room_number}"
+        return f"History on {self.history_date} for Room {self.hotel_room.room_number}"
 
+# HotelRoomUsage 모델: 객실 이용 내역을 저장합니다.
+class HotelRoomUsage(models.Model):
+    hotel_room = models.ForeignKey(HotelRoom, on_delete=models.CASCADE, related_name='usages')
+    usage_date = models.DateTimeField(auto_now_add=True, verbose_name="이용 날짜")
+    usage_content = models.TextField(verbose_name="이용 내용")
 
-
+    def __str__(self):
+        return f"Usage on {self.usage_date} for Room {self.hotel_room.room_number}"
 
 

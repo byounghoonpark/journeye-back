@@ -1,9 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import CheckIn, Reservation
+from .models import CheckIn, Reservation, Review, ReviewPhoto
 from accounts.models import UserProfile
 from django.utils.timezone import now
-
 
 class UserSerializer(serializers.ModelSerializer):
     """워크인 고객 정보를 저장하는 시리얼라이저"""
@@ -64,3 +63,41 @@ class CheckOutRequestSerializer(serializers.Serializer):
         if not check_in:
             raise serializers.ValidationError("현재 체크인 중인 고객이 없습니다.")
         return data
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    photos = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Review
+        fields = [
+            'id', 'user', 'check_in', 'content', 'rating', 'created_at', 'updated_at', 'photos'
+        ]
+        read_only_fields = ["user"]
+
+    def get_photos(self, obj):
+        return [photo.image.url for photo in obj.photos.all()]
+
+    def create(self, validated_data):
+        photos = validated_data.pop("photos", [])
+
+        review = Review.objects.create(**validated_data)
+
+        # 사진 저장
+        for photo in photos:
+            ReviewPhoto.objects.create(review=review, image=photo)
+
+        return review
+
+    def update(self, instance, validated_data):
+        photos = validated_data.pop("photos", [])
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # 새로운 사진 저장
+        for photo in photos:
+            ReviewPhoto.objects.create(review=instance, image=photo)
+
+        return instance

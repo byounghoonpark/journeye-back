@@ -2,20 +2,22 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets, status
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.utils.timezone import now
 import random
 import string
 
 from accounts.models import UserProfile
 from accounts.permissions import IsAdminOrManager
-from .models import CheckIn, Reservation, HotelRoom
-from spaces.models import BaseSpace, HotelRoomLog
+from .models import CheckIn, Reservation, HotelRoom, Review, ReviewPhoto
+from spaces.models import BaseSpace, HotelRoomUsage
 from hotel_admin import settings
-from .serializers import CheckInRequestSerializer, CheckInSerializer, CheckOutRequestSerializer
+from .serializers import CheckInRequestSerializer, CheckInSerializer, CheckOutRequestSerializer, ReviewSerializer
 from drf_yasg import openapi
 
 
@@ -95,7 +97,7 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
         check_in.save()
 
         # 객실 상태 변경 및 로그 기록
-        self.update_room_status(check_in.hotel_room, check_in.user.username, "청소필요")
+        self.update_room_status(check_in.hotel_room, check_in.user.username, "청소 필요")
 
         return Response({"message": "체크아웃 완료"}, status=status.HTTP_200_OK)
 
@@ -196,7 +198,7 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
         room.save()
 
         action = "체크인" if status == "이용중" else "체크아웃"
-        HotelRoomLog.objects.create(
+        HotelRoomUsage.objects.create(
             hotel_room=room,
             log_content=f"{username}님이 {action}하였습니다."
         )
@@ -210,3 +212,74 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
             recipient_list=[email],
             fail_silently=False,
         )
+
+class ReviewViewSet(viewsets.ModelViewSet):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    parser_classes = [MultiPartParser, FormParser]
+    filterset_fields = ["basespace"]
+
+    def get_queryset(self):
+        queryset = Review.objects.all()
+        basespace_id = self.request.query_params.get('basespace')
+        if basespace_id:
+            queryset = queryset.filter(check_in__reservation__space__basespace=basespace_id)
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    @swagger_auto_schema(
+        operation_description="리뷰 리스트 조회 API",
+        manual_parameters=[
+            openapi.Parameter(
+                'basespace',
+                openapi.IN_QUERY,
+                description="BaseSpace ID 필터 (예: ?basespace=1)",
+                type=openapi.TYPE_INTEGER
+            )
+        ],
+        responses={
+            200: ReviewSerializer(many=True),
+            400: openapi.Response(description="잘못된 요청"),
+            403: openapi.Response(description="권한 없음"),
+        }
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+
+    @swagger_auto_schema(
+        operation_description="리뷰 작성 API",
+        request_body=ReviewSerializer,
+        manual_parameters=[
+            openapi.Parameter(
+                "photos",
+                openapi.IN_FORM,
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Items(type=openapi.TYPE_FILE),
+                description="리뷰 사진 업로드 (여러 파일 가능)"
+            )
+        ],
+        responses={
+            201: openapi.Response(description="리뷰 작성 성공"),
+            400: openapi.Response(description="잘못된 요청"),
+            403: openapi.Response(description="권한 없음"),
+        }
+    )
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        check_in_id = request.data.get('check_in')
+        check_in = get_object_or_404(CheckIn, id=check_in_id, user=request.user, checked_out=True)
+        review = serializer.save(user=request.user, check_in=check_in)
+
+        photos = request.FILES.getlist('photos')
+        for photo in photos:
+            ReviewPhoto.objects.create(review=review, image=photo)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

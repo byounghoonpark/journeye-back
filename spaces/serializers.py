@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from spaces.models import Hotel, SpacePhoto, HotelRoom, HotelRoomType, BaseSpacePhoto
+from spaces.models import Hotel, SpacePhoto, HotelRoom, HotelRoomType, BaseSpacePhoto, Floor
 from django.contrib.gis.geos import Point
 
 class HotelSerializer(serializers.ModelSerializer):
@@ -118,3 +118,7 @@ class HotelRoomSerializer(serializers.ModelSerializer):
         return HotelRoom.objects.create(**validated_data)
 
 
+class FloorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Floor
+        fields = '__all__'

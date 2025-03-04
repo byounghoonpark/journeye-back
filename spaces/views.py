@@ -6,8 +6,8 @@ from rest_framework.viewsets import ModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 
 from accounts.permissions import IsAdminOrManager
-from .models import HotelRoom, HotelRoomType, Hotel, SpacePhoto
-from .serializers import HotelRoomSerializer, HotelRoomTypeSerializer, HotelSerializer
+from .models import HotelRoom, HotelRoomType, Hotel, SpacePhoto, Floor
+from .serializers import HotelRoomSerializer, HotelRoomTypeSerializer, HotelSerializer, FloorSerializer
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -111,3 +111,40 @@ class HotelRoomViewSet(ModelViewSet):
     serializer_class = HotelRoomSerializer
     permission_classes = [IsAuthenticated, IsAdminOrManager]
 
+
+class FloorViewSet(ModelViewSet):
+    queryset = Floor.objects.all()
+    serializer_class = FloorSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    parser_classes = [MultiPartParser, FormParser]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["basespace"]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        basespace_id = self.request.query_params.get("basespace_id")
+        if basespace_id:
+            queryset = queryset.filter(basespace_id=basespace_id)
+        return queryset
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [AllowAny()]
+        return [IsAuthenticated(), IsAdminOrManager()]
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                "basespace_id",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_INTEGER,
+                description="조회할 특정 BaseSpace ID (필터링, 리스트 조회에서만 사용)",
+                required=False
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
