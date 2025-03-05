@@ -469,8 +469,8 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
                 "status": display_status,  # 대실/숙박 여부 + 날짜, 또는 DB의 status
                 "start_date": start_date,
                 "end_date": end_date,
-                "occupant_name": occupant_name,
-                "occupant_nationality": occupant_nationality,
+                "guest_name": occupant_name,
+                "guest_nationality": occupant_nationality,
                 "memo": memo_content,
             })
 
