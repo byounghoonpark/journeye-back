@@ -1,24 +1,30 @@
+import random
+import string
+
+from hotel_admin import settings
+
+from .models import CheckIn, Reservation, HotelRoom, Review, ReviewPhoto
 from django.contrib.auth.models import User
-from django.core.mail import send_mail
+from spaces.models import BaseSpace, HotelRoomUsage, HotelRoomMemo, HotelRoomHistory
+from chat.models import ChatRoom
+from accounts.models import UserProfile
+from accounts.permissions import IsAdminOrManager
+
 from django.db import transaction
+from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
-from django_filters.rest_framework import DjangoFilterBackend
+from django.utils.timezone import now
+
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 from rest_framework import viewsets, status
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.utils.timezone import now
-import random
-import string
 
-from accounts.models import UserProfile
-from accounts.permissions import IsAdminOrManager
-from .models import CheckIn, Reservation, HotelRoom, Review, ReviewPhoto
-from spaces.models import BaseSpace, HotelRoomUsage, HotelRoomMemo, HotelRoomHistory
-from hotel_admin import settings
 from .serializers import CheckInRequestSerializer, CheckInSerializer, CheckOutRequestSerializer, ReviewSerializer
-from drf_yasg import openapi
+
 
 
 def generate_unique_temp_code():
@@ -99,7 +105,15 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
         # 객실 상태 변경 및 로그 기록
         self.update_room_status(check_in.hotel_room, "체크 아웃")
 
-        return Response({"message": "체크아웃 완료"}, status=status.HTTP_200_OK)
+        chat_room = ChatRoom.objects.filter(checkin=check_in).first()
+        if chat_room:
+            chat_room.is_active = False
+            chat_room.save()
+
+        return Response({
+            "message": "체크아웃 완료" + (" 및 채팅방 비활성화됨" if chat_room else ""),
+            "chat_room_status": "비활성화됨" if chat_room else "채팅방 없음"
+        }, status=status.HTTP_200_OK)
 
     def get_hotel_and_room(self, hotel_id, room_id):
         """호텔 및 객실 정보 조회"""
@@ -145,9 +159,7 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
         temp_code = generate_unique_temp_code()
 
         new_user = User.objects.create_user(
-            username=f"walkin_{temp_code}",
-            first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"],
+            username=validated_data["guest_name"],
             password=generate_unique_temp_code(),
             email=validated_data["email"],
         )

@@ -14,7 +14,7 @@ from rest_framework.generics import get_object_or_404, RetrieveAPIView
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from accounts.models import UserProfile
-from spaces.models import Hotel, BaseSpace
+from spaces.models import  BaseSpace
 from .serializers import UserRegistrationSerializer, SpaceManagerAssignSerializer, UserDetailSerializer, \
     EmailTokenObtainPairSerializer, UserProfileUpdateSerializer
 
