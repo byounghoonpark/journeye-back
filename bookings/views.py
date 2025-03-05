@@ -440,32 +440,37 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
             # 기본값 (활성 체크인이 없으면 DB상의 status 그대로)
             occupant_name = ""
             display_status = room.status or ""
+            start_date = ""
+            end_date = ""
+            occupant_nationality = ""
 
             # 활성 체크인이 있으면 상태/이용객명 갱신
             if active_checkin:
                 occupant_name = active_checkin.user.get_full_name() or active_checkin.user.username
+                start_date = active_checkin.check_in_date.strftime('%m/%d')
+                end_date = active_checkin.check_out_date.strftime('%m/%d')
                 if active_checkin.is_day_use:
-                    # 대실
-                    display_status = (
-                        f"대실({active_checkin.check_in_date.strftime('%m/%d')} - "
-                        f"{active_checkin.check_out_date.strftime('%m/%d')})"
-                    )
+                    display_status = "대실"
                 else:
-                    # 숙박
-                    display_status = (
-                        f"숙박({active_checkin.check_in_date.strftime('%m/%d')} - "
-                        f"{active_checkin.check_out_date.strftime('%m/%d')})"
-                    )
+                    display_status = "숙박"
+
+                user_profile = UserProfile.objects.get(user=active_checkin.user)
+                occupant_nationality = user_profile.nationality
 
             # 가장 최근 메모 1개만
             last_memo = HotelRoomMemo.objects.filter(hotel_room=room).order_by('-memo_date').first()
             memo_content = last_memo.memo_content if last_memo else ""
 
             result.append({
+                "room_id": room.id,
                 "room_number": room.room_number,
+                "floor": room.floor.floor_number,
                 "room_type": room.room_type.name if room.room_type else "",
                 "status": display_status,  # 대실/숙박 여부 + 날짜, 또는 DB의 status
+                "start_date": start_date,
+                "end_date": end_date,
                 "occupant_name": occupant_name,
+                "occupant_nationality": occupant_nationality,
                 "memo": memo_content,
             })
 
