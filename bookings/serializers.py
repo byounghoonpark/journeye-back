@@ -43,8 +43,7 @@ class CheckInRequestSerializer(serializers.Serializer):
     end_time = serializers.TimeField(required=True, help_text="체크아웃 시간")
     people = serializers.CharField(required=False, help_text="인원 수 (워크인 고객인 경우)")
     nationality = serializers.CharField(required=False, help_text="국적 (워크인 고객인 경우)")
-    first_name = serializers.CharField(required=False, help_text="이름 (워크인 고객인 경우)")
-    last_name = serializers.CharField(required=False, help_text="성 (워크인 고객인 경우)")
+    guest_name = serializers.CharField(required=False, help_text="이름 (워크인 고객인 경우)")
     email = serializers.EmailField(required=False, help_text="이메일 (워크인 고객인 경우)")
     phone = serializers.CharField(required=False, help_text="전화번호 (워크인 고객인 경우)")
 
