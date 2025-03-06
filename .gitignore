@@ -26,3 +26,4 @@ migrations/
 photos/
 
 secrets.json
+/dump.rdb
