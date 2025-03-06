@@ -341,23 +341,23 @@ class RoomUsageViewSet(viewsets.ViewSet):
             ]
             user_profile = UserProfile.objects.get(user=active_checkin.user)
             data = {
-                "이용정보": {
-                    "대실여부": active_checkin.is_day_use,
-                    "체크인 날짜": active_checkin.check_in_date.strftime("%Y-%m-%d"),
-                    "체크인 시간": active_checkin.check_in_time.strftime(
+                "usage_info": {
+                    "is_day_use": active_checkin.is_day_use,
+                    "check_in_date": active_checkin.check_in_date.strftime("%Y-%m-%d"),
+                    "check_in_time": active_checkin.check_in_time.strftime(
                         "%H:%M:%S") if active_checkin.check_in_time else None,
-                    "체크아웃 날짜": active_checkin.check_out_date.strftime("%Y-%m-%d"),
-                    "체크아웃 시간": active_checkin.check_out_time.strftime(
+                    "check_out_date": active_checkin.check_out_date.strftime("%Y-%m-%d"),
+                    "check_out_time": active_checkin.check_out_time.strftime(
                         "%H:%M:%S") if active_checkin.check_out_time else None,
-                    "투숙인원": active_checkin.reservation.people,
+                    "people": active_checkin.reservation.people,
                 },
-                "고객정보": {
-                    "고객명": active_checkin.user.get_full_name() or active_checkin.user.username,
-                    "고객이메일": active_checkin.user.email,
-                    "고객 국적": user_profile.nationality,
-                    "고객전화번호": user_profile.phone_number,
+                "guest_info": {
+                    "guest_name": active_checkin.user.get_full_name() or active_checkin.user.username,
+                    "guest_email": active_checkin.user.email,
+                    "guest_nationality": user_profile.nationality,
+                    "guest_phone": user_profile.phone_number,
                 },
-                "이용내역": usage_list
+                "usage_list": usage_list
             }
         else:
             # 활성 체크인이 없는 경우: 객실상태, 메모, 최근 3일 이내의 객실이력 반환
