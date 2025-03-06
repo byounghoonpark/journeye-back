@@ -1,35 +1,63 @@
 from rest_framework import serializers
 from .models import ChatRoom, Message
+from datetime import datetime
 
 class MessageSerializer(serializers.ModelSerializer):
+    sender = serializers.StringRelatedField(read_only=True)
+    room = serializers.PrimaryKeyRelatedField(write_only=True, queryset=ChatRoom.objects.all())
+    # 클라이언트 입력용 파일 필드 (write_only)
+    file = serializers.FileField(write_only=True, required=False)
+    # 저장 후 자동으로 채워지는 필드들은 read_only
+    file_url = serializers.CharField(read_only=True)
+    file_name = serializers.CharField(read_only=True)
+    file_type = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
     class Meta:
         model = Message
-        fields = "__all__"
+        fields = [
+            'id', 'room', 'sender', 'content', 'file',
+            'file_url', 'file_name', 'file_type', 'created_at'
+        ]
+
+    def create(self, validated_data):
+        # file 필드는 Message 모델에 없으므로 삭제합니다.
+        validated_data.pop('file', None)
+        return super().create(validated_data)
 
 class ChatRoomSerializer(serializers.ModelSerializer):
-    latest_message = serializers.SerializerMethodField()
-    opponent_email = serializers.SerializerMethodField()
-    hotel_admin_email = serializers.SerializerMethodField()
-    user_email = serializers.SerializerMethodField()
+    # 채팅방에 연결된 메시지 목록
     messages = MessageSerializer(many=True, read_only=True)
+    # basespace와 checkin 필드에 대해 간단한 문자열 표현을 사용 (필요시 더 상세한 Serializer로 교체 가능)
+    basespace = serializers.StringRelatedField()
+    checkin = serializers.StringRelatedField()
 
     class Meta:
         model = ChatRoom
-        fields = ('id', 'hotel_admin_email', 'user_email', 'latest_message', 'opponent_email', 'messages')
+        fields = ['id', 'basespace', 'checkin', 'is_active', 'created_at', 'messages']
 
-    def get_latest_message(self, obj):
-        latest_msg = Message.objects.filter(chat_room=obj).order_by('-timestamp').first()
-        return latest_msg.text if latest_msg else None
+class ChatRoomListSerializer(serializers.ModelSerializer):
+    room_number = serializers.CharField(source='checkin.hotel_room.room_number')
+    room_type = serializers.CharField(source='checkin.hotel_room.room_type.name')
+    guest_name = serializers.CharField(source='checkin.user.username')
+    guest_nationality = serializers.CharField(source='checkin.user.profile.nationality')
+    last_message = serializers.SerializerMethodField()
+    last_message_time = serializers.SerializerMethodField()
 
-    def get_opponent_email(self, obj):
-        request_user_email = self.context['request'].query_params.get('email', None)
-        # 요청한 사용자가 호텔 관리자라면 상대는 일반 사용자, 그렇지 않으면 호텔 관리자입니다.
-        if request_user_email == obj.hotel_admin.email:
-            return obj.user.email
-        return obj.hotel_admin.email
+    class Meta:
+        model = ChatRoom
+        fields = ['id', 'room_number', 'room_type', 'guest_name', 'guest_nationality', 'last_message', 'last_message_time']
 
-    def get_hotel_admin_email(self, obj):
-        return obj.hotel_admin.email
+    def get_last_message(self, obj):
+        last_message = Message.objects.filter(room=obj).order_by('-created_at').first()
+        return last_message.content if last_message else None
 
-    def get_user_email(self, obj):
-        return obj.user.email
+    def get_last_message_time(self, obj):
+        last_message = Message.objects.filter(room=obj).order_by('-created_at').first()
+        if last_message:
+            now = datetime.now()
+            if last_message.created_at.date() == now.date():
+                return last_message.created_at.strftime('%I:%M %p')
+            else:
+                return last_message.created_at.strftime('%d/%m/%Y')
+        return None

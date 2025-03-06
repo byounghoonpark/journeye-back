@@ -15,6 +15,10 @@ SECRET_KEY = 'django-insecure-1t#x^x30(pbukm9edejt@#ce&g#()d-#ag()p*^1=j+snrp)th
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0", "127.0.0.1:8001",
+    "localhost:8001", "127.0.0.1:8080",
+    "localhost:8080"]
+
 CORS_ALLOWED_HOSTS = [
     "http://127.0.0.1:8000",
     "http://localhost:8000",
@@ -27,10 +31,14 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
+    "http://127.0.0.1:8080",
+    "http://localhost:8080",
     "http://127.0.0.1:3000",
     "http://localhost:3000",
+    "ws://127.0.0.1:8001",
+    "ws://localhost:8001",
+    "http://127.0.0.1:8001",
+    "http://localhost:8001",
 ]
 
 SECURE_PROXY_SSL_HEADER = None
@@ -49,6 +57,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_extensions',
     'corsheaders',
+    'storages',
     'chat',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -112,10 +121,10 @@ DATABASES = {
 }
 # redis 채널 설정
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [(secret_config['REDIS_HOST'], secret_config['REDIS_PORT'])],
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
         },
     },
 }
@@ -216,3 +225,12 @@ sentry_sdk.init(
 
 MEDIA_URL = '/photos/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'photos')
+
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+AWS_ACCESS_KEY_ID = "admin"  # MinIO ID
+AWS_SECRET_ACCESS_KEY = "admin123"  # MinIO Password
+AWS_STORAGE_BUCKET_NAME = "mybucket"  # 생성한 버킷 이름
+AWS_S3_ENDPOINT_URL = "http://localhost:9000"  # MinIO API 주소
+AWS_S3_ADDRESSING_STYLE = "path"  # Path-style URL 사용
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}"
