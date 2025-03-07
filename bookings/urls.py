@@ -6,7 +6,8 @@ router.register(r'reviews', ReviewViewSet)
 router.register(r'room-usages', RoomUsageViewSet, basename='room-usage')
 router.register(r'hotel-rooms-status', HotelRoomStatusViewSet, basename='hotel-room-status')
 urlpatterns = [
-    path("checkin/", CheckInAndOutViewSet.as_view({"post": "check_in"}), name="checkin"),
+    path("checkin/", CheckInAndOutViewSet.as_view({"post": "check_in", "patch": "update_check_in"}), name="checkin"),
     path("checkout/", CheckInAndOutViewSet.as_view({"post": "check_out"}), name="checkout"),
+    path("guest_info/", CheckInAndOutViewSet.as_view({"patch": "update_customer_info"}), name="guest_info"),
     path('', include(router.urls)),
 ]

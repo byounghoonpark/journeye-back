@@ -22,9 +22,10 @@ from rest_framework import viewsets, status
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import action
 
-from .serializers import CheckInRequestSerializer, CheckInSerializer, CheckOutRequestSerializer, ReviewSerializer
-
+from .serializers import CheckInRequestSerializer, CheckInSerializer, CheckOutRequestSerializer, ReviewSerializer, \
+    CheckInUpdateSerializer, CheckInCustomerUpdateSerializer
 
 
 def generate_unique_temp_code():
@@ -226,6 +227,74 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
             fail_silently=False,
         )
 
+    @swagger_auto_schema(
+        request_body=CheckInUpdateSerializer,
+        responses={
+            200: CheckInSerializer,
+            400: openapi.Response(description="잘못된 요청"),
+            403: openapi.Response(description="권한 없음"),
+            404: openapi.Response(description="체크인 정보 없음"),
+        },
+        operation_summary="체크인 정보 수정",
+        operation_description="체크인 키값을 받아 is_day_use, 체크인 날짜, 체크아웃 날짜, 인원을 수정합니다.",
+    )
+    @action(detail=True, methods=['patch'], url_path='update-checkin')
+    def update_check_in(self, request):
+        check_in_id = request.data.get('id')
+        check_in = get_object_or_404(CheckIn, pk=check_in_id)
+        serializer = CheckInUpdateSerializer(check_in, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        # 예약 인원 업데이트
+        if 'reservation' in request.data and 'people' in request.data['reservation']:
+            check_in.reservation.people = request.data['reservation']['people']
+            check_in.reservation.save()
+
+        return Response(CheckInSerializer(check_in).data, status=status.HTTP_200_OK)
+
+
+    @swagger_auto_schema(
+        request_body=CheckInCustomerUpdateSerializer,
+        responses={
+            200: CheckInSerializer,
+            400: openapi.Response(description="잘못된 요청"),
+            403: openapi.Response(description="권한 없음"),
+            404: openapi.Response(description="체크인 정보 없음"),
+        },
+        operation_summary="체크인 고객 정보 수정",
+        operation_description="체크인 키값을 받아 고객의 이름, 이메일, 전화번호, 국적을 수정합니다.",
+    )
+    @action(detail=True, methods=['patch'], url_path='update-customer-info')
+    def update_customer_info(self, request):
+        check_in_id = request.data.get('id')
+        check_in = get_object_or_404(CheckIn, pk=check_in_id)
+        user = check_in.user
+        user_profile = get_object_or_404(UserProfile, user=user)
+
+        serializer = CheckInCustomerUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
+        if 'guest_name' in validated_data:
+            user.username = validated_data['guest_name']
+            user.save()
+
+        if 'email' in validated_data:
+            user.email = validated_data['email']
+            user.save()
+
+        if 'phone' in validated_data:
+            user_profile.phone_number = validated_data['phone']
+            user_profile.save()
+
+        if 'nationality' in validated_data:
+            user_profile.nationality = validated_data['nationality']
+            user_profile.save()
+
+        return Response(CheckInSerializer(check_in).data, status=status.HTTP_200_OK)
+
+
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
@@ -342,6 +411,7 @@ class RoomUsageViewSet(viewsets.ViewSet):
             user_profile = UserProfile.objects.get(user=active_checkin.user)
             data = {
                 "usage_info": {
+                    "check_in_id": active_checkin.id,
                     "is_day_use": active_checkin.is_day_use,
                     "check_in_date": active_checkin.check_in_date.strftime("%Y-%m-%d"),
                     "check_in_time": active_checkin.check_in_time.strftime(
@@ -352,7 +422,7 @@ class RoomUsageViewSet(viewsets.ViewSet):
                     "people": active_checkin.reservation.people,
                 },
                 "guest_info": {
-                    "guest_name": active_checkin.user.get_full_name() or active_checkin.user.username,
+                    "guest_name": active_checkin.user.username or active_checkin.user.get_full_name(),
                     "guest_email": active_checkin.user.email,
                     "guest_nationality": user_profile.nationality,
                     "guest_phone": user_profile.phone_number,

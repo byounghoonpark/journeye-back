@@ -24,6 +24,11 @@ class ReservationSerializer(serializers.ModelSerializer):
         model = Reservation
         fields = ['id', 'user', 'space', 'start_date', 'start_time', 'end_date', 'end_time', 'people']
 
+class ReservationPeopleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reservation
+        fields = ['people']
+
 class CheckInSerializer(serializers.ModelSerializer):
     """체크인 정보를 저장하는 시리얼라이저"""
     class Meta:
@@ -56,6 +61,29 @@ class CheckInResponseSerializer(serializers.ModelSerializer):
         model = CheckIn
         fields = ['id', 'user', 'reservation', 'check_in_date', 'check_in_time', 'check_out_date', 'check_out_time', 'temp_code', 'is_day_use']
 
+
+class CheckInUpdateSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=True)
+    reservation = ReservationPeopleSerializer()
+
+    class Meta:
+        model = CheckIn
+        fields = ['id', 'is_day_use', 'check_in_date', 'check_in_time', 'check_out_date', 'check_out_time', 'reservation']
+
+    def update(self, instance, validated_data):
+        reservation_data = validated_data.pop('reservation', None)
+
+        # CheckIn 인스턴스 업데이트
+        instance = super().update(instance, validated_data)
+
+        # Reservation 인스턴스 업데이트
+        if reservation_data:
+            reservation = instance.reservation
+            for attr, value in reservation_data.items():
+                setattr(reservation, attr, value)
+            reservation.save()
+
+        return instance
 
 class CheckOutRequestSerializer(serializers.Serializer):
     room_number = serializers.CharField(required=True, help_text="체크아웃할 객실 번호")
@@ -115,3 +143,11 @@ class HotelRoomHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = HotelRoomHistory
         fields = '__all__'
+
+
+class CheckInCustomerUpdateSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=True)
+    guest_name = serializers.CharField(required=False)
+    email = serializers.EmailField(required=False)
+    phone = serializers.CharField(required=False)
+    nationality = serializers.CharField(required=False)
