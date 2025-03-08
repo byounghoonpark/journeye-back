@@ -22,10 +22,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     phone_number = serializers.CharField(required=False, allow_blank=True)
     profile_picture = serializers.ImageField(required=False)
     nationality = serializers.CharField(max_length=100, required=False)
+    language = serializers.CharField(max_length=100, required=False)
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'profile_picture', 'nationality', 'first_name', 'last_name', 'phone_number']
+        fields = ['email', 'password', 'profile_picture', 'nationality', 'first_name', 'last_name', 'phone_number', 'language']
 
     def create(self, validated_data):
         username = validated_data['first_name'] + ' ' + validated_data['last_name']
@@ -40,6 +41,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             user=user,
             profile_picture=validated_data.get('profile_picture'),
             nationality=validated_data.get('nationality'),
+            language=validated_data.get('language'),
             phone_number=validated_data.get('phone_number'),
             role='GENERAL',
             email_verified=False,
@@ -60,7 +62,7 @@ class SpaceManagerAssignSerializer(serializers.ModelSerializer):
 class UserProfileDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['profile_picture', 'nationality', 'email_verified', 'phone_verified']
+        fields = ['profile_picture', 'nationality', 'language', 'email_verified', 'phone_verified']
 
 class UserDetailSerializer(serializers.ModelSerializer):
     profile = UserProfileDetailSerializer()
@@ -105,4 +107,4 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['profile_picture', 'phone_number', 'nationality']
+        fields = ['profile_picture', 'phone_number', 'nationality', 'language']

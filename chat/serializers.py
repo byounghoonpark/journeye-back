@@ -1,6 +1,10 @@
+import pytz
 from rest_framework import serializers
-from .models import ChatRoom, Message
-from datetime import datetime
+from .models import ChatRoom, Message, ChatRoomParticipant
+from django.utils import timezone
+
+from .utils import translate_text
+
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.StringRelatedField(read_only=True)
@@ -12,18 +16,23 @@ class MessageSerializer(serializers.ModelSerializer):
     file_name = serializers.CharField(read_only=True)
     file_type = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
+    translated_content = serializers.CharField(read_only=True)
 
     class Meta:
         model = Message
         fields = [
-            'id', 'room', 'sender', 'content', 'file',
+            'id', 'room', 'sender', 'content', 'translated_content', 'file',
             'file_url', 'file_name', 'file_type', 'created_at'
         ]
 
     def create(self, validated_data):
-        # file 필드는 Message 모델에 없으므로 삭제합니다.
         validated_data.pop('file', None)
-        return super().create(validated_data)
+        message = super().create(validated_data)
+        if message.content:
+            target_lang = 'KO' if message.sender.profile.language != 'KO' else message.sender.profile.language
+            message.translated_content = translate_text(message.content, target_lang)
+            message.save()
+        return message
 
 class ChatRoomSerializer(serializers.ModelSerializer):
     # 채팅방에 연결된 메시지 목록
@@ -43,10 +52,13 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
     guest_nationality = serializers.CharField(source='checkin.user.profile.nationality')
     last_message = serializers.SerializerMethodField()
     last_message_time = serializers.SerializerMethodField()
+    unread_count = serializers.SerializerMethodField()
+    is_answered = serializers.BooleanField()
 
     class Meta:
         model = ChatRoom
-        fields = ['id', 'room_number', 'room_type', 'guest_name', 'guest_nationality', 'last_message', 'last_message_time']
+        fields = ['id', 'room_number', 'room_type', 'guest_name', 'guest_nationality',
+                  'last_message', 'last_message_time', 'unread_count', 'is_answered']
 
     def get_last_message(self, obj):
         last_message = Message.objects.filter(room=obj).order_by('-created_at').first()
@@ -55,9 +67,87 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
     def get_last_message_time(self, obj):
         last_message = Message.objects.filter(room=obj).order_by('-created_at').first()
         if last_message:
-            now = datetime.now()
-            if last_message.created_at.date() == now.date():
-                return last_message.created_at.strftime('%I:%M %p')
+            now_time = timezone.localtime(timezone.now())
+            last_time = timezone.localtime(last_message.created_at)
+            if last_time.date() == now_time.date():
+                return last_time.strftime('%I:%M %p')
             else:
-                return last_message.created_at.strftime('%d/%m/%Y')
+                return last_time.strftime('%d/%m/%Y')
         return None
+
+    def get_unread_count(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return 0
+        user = request.user
+        try:
+            participant = obj.participants.get(user=user)
+        except ChatRoomParticipant.DoesNotExist:
+            # 참여 기록이 없으면 읽지 않은 메시지가 없다고 간주
+            return Message.objects.filter(room=obj).count()
+
+        # 만약 last_read_time이 기록되어 있다면, 그 시간 이후의 메시지 개수를 반환
+        if participant.last_read_time:
+            count = Message.objects.filter(room=obj, created_at__gt=participant.last_read_time).count()
+        else:
+            # 기록이 없으면 모든 메시지를 미확인으로 간주
+            count = Message.objects.filter(room=obj).count()
+        return count
+
+
+class ManagerChatRoomSerializer(serializers.ModelSerializer):
+    room_number = serializers.CharField(source='checkin.hotel_room.room_number')
+    room_type = serializers.CharField(source='checkin.hotel_room.room_type.name')
+    guest_nationality = serializers.CharField(source='checkin.user.profile.nationality')
+    guest_profile_image = serializers.ImageField(source='checkin.user.profile.profile_picture')
+    messages = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatRoom
+        fields = ['id', 'room_number', 'room_type', 'guest_nationality', 'guest_profile_image', 'messages']
+
+    def get_messages(self, obj):
+        messages = Message.objects.filter(room=obj).order_by('created_at')
+        grouped_messages = {}
+        for message in messages:
+            date = message.created_at.date()
+            if date not in grouped_messages:
+                grouped_messages[date] = []
+            grouped_messages[date].append(self.format_message(message))
+        return [{'date': date, 'messages': msgs} for date, msgs in grouped_messages.items()]
+
+    def format_message(self, message):
+        korea_tz = pytz.timezone('Asia/Seoul')
+        local_time = message.created_at.astimezone(korea_tz)
+        formatted_time = local_time.strftime('%I:%M %p')
+        message_data = MessageSerializer(message).data
+        message_data['created_at'] = formatted_time
+        return message_data
+
+
+class CustomerChatRoomSerializer(serializers.ModelSerializer):
+    hotel_profile_image = serializers.ImageField(source='checkin.hotel_room.room_type.basespace.photos.first.image')
+    messages = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatRoom
+        fields = ['id', 'hotel_profile_image', 'messages']
+
+    def get_messages(self, obj):
+        messages = Message.objects.filter(room=obj).order_by('created_at')
+        grouped_messages = {}
+        for message in messages:
+            date = message.created_at.date()
+            if date not in grouped_messages:
+                grouped_messages[date] = []
+            grouped_messages[date].append(self.format_message(message, obj))
+        return [{'date': date, 'messages': msgs} for date, msgs in grouped_messages.items()]
+
+    def format_message(self, message, chat_room):
+        korea_tz = pytz.timezone('Asia/Seoul')
+        local_time = message.created_at.astimezone(korea_tz)
+        formatted_time = local_time.strftime('%I:%M %p')
+        message_data = MessageSerializer(message).data
+        message_data['created_at'] = formatted_time
+        message_data['sender'] = chat_room.checkin.hotel_room.room_type.basespace.name
+        return message_data

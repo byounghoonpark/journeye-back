@@ -169,6 +169,7 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
             user=new_user,
             phone_number=validated_data["phone"],
             nationality=validated_data["nationality"],
+            language=validated_data["language"],
             email_code=temp_code
         )
 
@@ -290,6 +291,10 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
 
         if 'nationality' in validated_data:
             user_profile.nationality = validated_data['nationality']
+            user_profile.save()
+
+        if 'language' in validated_data:
+            user_profile.language = validated_data['language']
             user_profile.save()
 
         return Response(CheckInSerializer(check_in).data, status=status.HTTP_200_OK)

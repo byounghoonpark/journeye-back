@@ -119,12 +119,12 @@ DATABASES = {
         'PORT': secret_config['DB_PORT'],
     }
 }
-# redis 채널 설정
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            "hosts": [(secret_config['REDIS_HOST'], secret_config['REDIS_PORT'])],
         },
     },
 }
@@ -152,7 +152,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# TIME_ZONE = 'UTC'
+
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
@@ -163,6 +165,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -234,3 +237,6 @@ AWS_STORAGE_BUCKET_NAME = "mybucket"  # 생성한 버킷 이름
 AWS_S3_ENDPOINT_URL = "http://localhost:9000"  # MinIO API 주소
 AWS_S3_ADDRESSING_STYLE = "path"  # Path-style URL 사용
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}"
+
+
+DEEPL_API_KEY = secret_config['DEEPL_API_KEY']

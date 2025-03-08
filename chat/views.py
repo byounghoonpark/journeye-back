@@ -11,8 +11,9 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from rest_framework.permissions import IsAuthenticated
 from bookings.models import CheckIn
-from .models import ChatRoom, Message
-from .serializers import ChatRoomSerializer, MessageSerializer, ChatRoomListSerializer
+from .models import ChatRoom, Message, ChatRoomParticipant
+from .serializers import ChatRoomSerializer, MessageSerializer, ChatRoomListSerializer, ManagerChatRoomSerializer, \
+    CustomerChatRoomSerializer
 
 # MinIO (S3) 클라이언트 설정
 s3_client = boto3.client(
@@ -72,7 +73,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         queryset = self.get_queryset()
         if basespace_id:
             queryset = queryset.filter(basespace_id=basespace_id)
-        serializer = ChatRoomListSerializer(queryset, many=True)
+        serializer = ChatRoomListSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -112,8 +113,20 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         # 본인의 채팅방이 아니고 관리자가 아니라면 접근 거부
         if request.user != instance.checkin.user and request.user.profile.role not in ['ADMIN', 'MANAGER']:
             return Response({"error": "채팅방에 접근할 권한이 없습니다."}, status=status.HTTP_403_FORBIDDEN)
-        serializer = self.get_serializer(instance)
+
+        participant, created = ChatRoomParticipant.objects.get_or_create(
+            chatroom=instance, user=request.user
+        )
+        participant.last_read_time = now()
+        participant.save()
+
+        if hasattr(request.user, 'profile') and request.user.profile.role in ['ADMIN', 'MANAGER']:
+            serializer = ManagerChatRoomSerializer(instance)
+        else:
+            serializer = CustomerChatRoomSerializer(instance)
+
         return Response(serializer.data)
+
 
     @action(detail=True, methods=['post'])
     def mark_as_answered(self, request, pk=None):

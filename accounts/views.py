@@ -419,6 +419,7 @@ class UserProfileUpdateView(APIView):
                         "email": openapi.Schema(type=openapi.TYPE_STRING, description="이메일"),
                         "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="전화번호"),
                         "nationality": openapi.Schema(type=openapi.TYPE_STRING, description="국적"),
+                        "language": openapi.Schema(type=openapi.TYPE_STRING, description="언어"),
                         "profile_picture": openapi.Schema(type=openapi.TYPE_STRING, description="프로필 사진 URL"),
                         "message": openapi.Schema(type=openapi.TYPE_STRING, description="응답 메시지"),
                     },
@@ -445,6 +446,12 @@ class UserProfileUpdateView(APIView):
                 type=openapi.TYPE_STRING,
                 description='국적'
             ),
+            openapi.Parameter(
+                'language',
+                openapi.IN_FORM,
+                type=openapi.TYPE_STRING,
+                description='언어'
+            ),
         ]
     )
     def patch(self, request):
@@ -460,6 +467,7 @@ class UserProfileUpdateView(APIView):
                 "email": user.email,
                 "phone_number": serializer.data.get("phone_number", profile.phone_number),
                 "nationality": serializer.data.get("nationality", profile.nationality),
+                "language": serializer.data.get("language", profile.language),
                 "profile_picture": serializer.data.get(
                     "profile_picture", profile.profile_picture.url if profile.profile_picture else None
                 ),
