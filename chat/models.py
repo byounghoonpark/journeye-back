@@ -15,11 +15,21 @@ class ChatRoom(models.Model):
     def __str__(self):
         return f"Chat Room - {self.checkin.user.username} ({self.basespace.name})"
 
+class ChatRoomParticipant(models.Model):
+    chatroom = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='participants')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chatroom_participations')
+    # 마지막으로 읽은 시각을 저장합니다.
+    last_read_time = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.chatroom} - {self.user.username}"
+
 class Message(models.Model):
     """ 채팅 메시지 (텍스트, 이미지, 파일 포함) """
     room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField(blank=True, null=True)
+    translated_content = models.TextField(blank=True, null=True)
     file_url = models.URLField(blank=True, null=True)
     file_name = models.CharField(max_length=255, blank=True, null=True)
     file_type = models.CharField(max_length=50, blank=True, null=True)

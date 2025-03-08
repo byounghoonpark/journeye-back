@@ -26,4 +26,8 @@ class UserProfile(models.Model):
         default=UserRole.GENERAL.name,
         verbose_name="유저 역할"
     )
+    language = models.CharField(
+        max_length=20,
+        choices=UserRole.choices(),
+    )
     email_code = models.CharField(max_length=6, blank=True, null=True, verbose_name='이메일 인증 코드')
