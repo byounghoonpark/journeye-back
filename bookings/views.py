@@ -556,7 +556,7 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
                 "room_id": room.id,
                 "room_number": room.room_number,
                 "floor": room.floor.floor_number,
-                "room_type": room.room_type.nickname if room.room_type else "",
+                "room_type": room.room_type.nickname if room.room_type.nickname else "",
                 "status": display_status,  # 대실/숙박 여부 + 날짜, 또는 DB의 status
                 "start_date": start_date,
                 "end_date": end_date,
