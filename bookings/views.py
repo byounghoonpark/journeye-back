@@ -1,6 +1,6 @@
 import random
 import string
-
+from datetime import timedelta
 from hotel_admin import settings
 
 from .models import CheckIn, Reservation, HotelRoom, Review, ReviewPhoto
@@ -90,7 +90,7 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
 
         # 현재 체크인 중인 고객 찾기 (체크아웃되지 않은 고객)
         check_in = CheckIn.objects.filter(
-            hotel_room__room_number=validated_data["room_number"],
+            hotel_room__id=validated_data["room_id"],
             checked_out=False
         ).order_by('-check_in_date').first()  # 가장 최근 체크인한 고객 우선 선택
 
@@ -394,18 +394,47 @@ class RoomUsageViewSet(viewsets.ViewSet):
     )
     def retrieve(self, request, pk=None):
         today = now().date()
+        room = get_object_or_404(HotelRoom, id=pk)
 
-        # 해당 객실(pk)에 대해 오늘 기준 활성 체크인 조회
+        # 오늘 기준 활성 체크인 조회
         active_checkin = CheckIn.objects.filter(
-            hotel_room__id=pk,
+            hotel_room=room,
             check_in_date__lte=today,
             check_out_date__gte=today,
             checked_out=False
         ).order_by('-check_in_date').first()
 
+        # 메모와 객실 이력은 항상 조회합니다.
+        memos = HotelRoomMemo.objects.filter(hotel_room=room)
+        memo_list = [
+            {
+                "memo_date": memo.memo_date.strftime("%Y-%m-%d"),
+                "memo_content": memo.memo_content
+            }
+            for memo in memos
+        ]
+        three_days_ago = now() - timedelta(days=3)
+        histories = HotelRoomHistory.objects.filter(
+            hotel_room=room,
+            history_date__gte=three_days_ago
+        )
+        history_list = [
+            {
+                "history_date": history.history_date.strftime("%Y-%m-%d %H:%M:%S"),
+                "history_content": history.history_content
+            }
+            for history in histories
+        ]
+
+        data = {
+            "room_status": room.status,
+            "memo": memo_list,
+            "room_history": history_list,
+        }
+
         if active_checkin:
-            # 활성 체크인이 있는 경우: 이용정보, 고객정보, 이용내역 반환
-            usages = HotelRoomUsage.objects.filter(hotel_room=active_checkin.hotel_room)
+            # 활성 체크인이 있는 경우: 이용정보, 고객정보, 이용내역 추가
+            usages = HotelRoomUsage.objects.filter(hotel_room=room)
             usage_list = [
                 {
                     "usage_date": usage.usage_date.strftime("%Y-%m-%d %H:%M:%S"),
@@ -414,57 +443,32 @@ class RoomUsageViewSet(viewsets.ViewSet):
                 for usage in usages
             ]
             user_profile = UserProfile.objects.get(user=active_checkin.user)
-            data = {
-                "usage_info": {
-                    "check_in_id": active_checkin.id,
-                    "is_day_use": active_checkin.is_day_use,
-                    "check_in_date": active_checkin.check_in_date.strftime("%Y-%m-%d"),
-                    "check_in_time": active_checkin.check_in_time.strftime(
-                        "%H:%M:%S") if active_checkin.check_in_time else None,
-                    "check_out_date": active_checkin.check_out_date.strftime("%Y-%m-%d"),
-                    "check_out_time": active_checkin.check_out_time.strftime(
-                        "%H:%M:%S") if active_checkin.check_out_time else None,
-                    "people": active_checkin.reservation.people,
-                },
-                "guest_info": {
-                    "guest_name": active_checkin.user.username or active_checkin.user.get_full_name(),
-                    "guest_email": active_checkin.user.email,
-                    "guest_nationality": user_profile.nationality,
-                    "guest_phone": user_profile.phone_number,
-                },
-                "usage_list": usage_list
+            usage_info = {
+                "check_in_id": active_checkin.id,
+                "is_day_use": active_checkin.is_day_use,
+                "check_in_date": active_checkin.check_in_date.strftime("%Y-%m-%d"),
+                "check_in_time": active_checkin.check_in_time.strftime(
+                    "%H:%M:%S") if active_checkin.check_in_time else None,
+                "check_out_date": active_checkin.check_out_date.strftime("%Y-%m-%d"),
+                "check_out_time": active_checkin.check_out_time.strftime(
+                    "%H:%M:%S") if active_checkin.check_out_time else None,
+                "people": active_checkin.reservation.people,
             }
+            guest_info = {
+                "guest_name": active_checkin.user.username or active_checkin.user.get_full_name(),
+                "guest_email": active_checkin.user.email,
+                "guest_nationality": user_profile.nationality,
+                "guest_phone": user_profile.phone_number,
+            }
+            data["usage_info"] = usage_info
+            data["guest_info"] = guest_info
+            data["usage_list"] = usage_list
         else:
-            # 활성 체크인이 없는 경우: 객실상태, 메모, 최근 3일 이내의 객실이력 반환
-            room = get_object_or_404(HotelRoom, id=pk)
-            memos = HotelRoomMemo.objects.filter(hotel_room=room)
-            memo_list = [
-                {
-                    "memo_date": memo.memo_date.strftime("%Y-%m-%d"),
-                    "memo_content": memo.memo_content
-                }
-                for memo in memos
-            ]
-            from datetime import timedelta
-            three_days_ago = now() - timedelta(days=3)
-            histories = HotelRoomHistory.objects.filter(
-                hotel_room=room,
-                history_date__gte=three_days_ago
-            )
-            history_list = [
-                {
-                    "history_date": history.history_date.strftime("%Y-%m-%d %H:%M:%S"),
-                    "history_content": history.history_content
-                }
-                for history in histories
-            ]
-            data = {
-                "객실상태": room.status,
-                "메모": memo_list,
-                "객실이력": history_list
-            }
+            data["usage_info"] = {}
+            data["guest_info"] = {}
+            data["usage_list"] = []
 
-        return Response(data, status=status.HTTP_200_OK)
+        return Response(data, status=200)
 
 
 class HotelRoomStatusViewSet(viewsets.ViewSet):
@@ -526,7 +530,7 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
 
             # 기본값 (활성 체크인이 없으면 DB상의 status 그대로)
             occupant_name = ""
-            display_status = room.status or ""
+            display_status = room.status
             start_date = ""
             end_date = ""
             occupant_nationality = ""

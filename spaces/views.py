@@ -248,3 +248,12 @@ class HotelRoomHistoryViewSet(ModelViewSet):
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        if response.status_code == status.HTTP_201_CREATED:
+            history = HotelRoomHistory.objects.get(id=response.data['id'])
+            hotel_room = history.hotel_room
+            hotel_room.status = history.history_content
+            hotel_room.save()
+        return response
