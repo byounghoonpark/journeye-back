@@ -458,6 +458,7 @@ class RoomUsageViewSet(viewsets.ViewSet):
                 "guest_name": active_checkin.user.username or active_checkin.user.get_full_name(),
                 "guest_email": active_checkin.user.email,
                 "guest_nationality": user_profile.nationality,
+                "guest_language": user_profile.language,
                 "guest_phone": user_profile.phone_number,
             }
             data["usage_info"] = usage_info
@@ -541,9 +542,9 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
                 start_date = active_checkin.check_in_date.strftime('%m/%d')
                 end_date = active_checkin.check_out_date.strftime('%m/%d')
                 if active_checkin.is_day_use:
-                    display_status = "대실"
+                    display_status = f"대실 • {room.status}"
                 else:
-                    display_status = "숙박"
+                    display_status = f"숙박 • {room.status}"
 
                 user_profile = UserProfile.objects.get(user=active_checkin.user)
                 occupant_nationality = user_profile.nationality
@@ -566,3 +567,4 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
             })
 
         return Response(result, status=status.HTTP_200_OK)
+

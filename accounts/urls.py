@@ -18,7 +18,7 @@ from .views import (
 urlpatterns = [
     path("register/", UserRegistrationView.as_view(), name="user-register"),
     path("send-email/", SendEmailVerificationView.as_view(), name="resend-email-verification"),
-    path("email-verify/", EmailVerificationView.as_view(), name="email-verify"),
+    # path("email-verify/", EmailVerificationView.as_view(), name="email-verify"),
     path("assign-space-manager/", AssignSpaceManagerView.as_view(), name="assign-hotel-manager"),
     path("login/", EmailLoginView.as_view(), name="로그인"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),  # 액세스 토큰 갱신
