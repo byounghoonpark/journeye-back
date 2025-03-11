@@ -7,6 +7,6 @@ router.register(r'chatrooms', ChatRoomViewSet, basename='chatroom')
 router.register(r'messages', MessageViewSet, basename='message')
 
 urlpatterns = [
-    path('api/', include(router.urls)),
+    path('', include(router.urls)),
     path('chatroom/<int:pk>/mark_as_answered/', ChatRoomViewSet.as_view({'post': 'mark_as_answered'}), name='mark-as-answered'),
 ]

@@ -113,7 +113,7 @@ class HotelRoomSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         # 반환 시 room_type 필드를 해당 룸타입의 이름으로 변경합니다.
-        rep['room_type'] = instance.room_type.name if instance.room_type else None
+        rep['room_type'] = instance.room_type.nickname if instance.room_type else None
         rep['floor'] = instance.floor.floor_number if instance.floor else None
         return rep
 

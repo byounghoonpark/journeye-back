@@ -4,7 +4,6 @@ from spaces.models import BaseSpace
 from bookings.models import CheckIn
 
 class ChatRoom(models.Model):
-    """ 체크인된 고객과 호텔 관리자가 채팅할 수 있는 방 """
     id = models.AutoField(primary_key=True)
     basespace = models.ForeignKey(BaseSpace, on_delete=models.CASCADE, related_name="chat_rooms")
     checkin = models.ForeignKey(CheckIn, on_delete=models.CASCADE, related_name="chat_rooms")
@@ -18,14 +17,12 @@ class ChatRoom(models.Model):
 class ChatRoomParticipant(models.Model):
     chatroom = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='participants')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chatroom_participations')
-    # 마지막으로 읽은 시각을 저장합니다.
     last_read_time = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.chatroom} - {self.user.username}"
 
 class Message(models.Model):
-    """ 채팅 메시지 (텍스트, 이미지, 파일 포함) """
     room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField(blank=True, null=True)

@@ -22,7 +22,7 @@ class ReservationSerializer(serializers.ModelSerializer):
     """예약 정보를 저장하는 시리얼라이저"""
     class Meta:
         model = Reservation
-        fields = ['id', 'user', 'space', 'start_date', 'start_time', 'end_date', 'end_time', 'people']
+        fields = ['id', 'user', 'space', 'start_date', 'start_time', 'end_date', 'end_time', 'people', 'is_approved']
 
 class ReservationPeopleSerializer(serializers.ModelSerializer):
     class Meta:

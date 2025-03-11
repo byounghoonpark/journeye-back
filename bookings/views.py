@@ -25,7 +25,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 
 from .serializers import CheckInRequestSerializer, CheckInSerializer, CheckOutRequestSerializer, ReviewSerializer, \
-    CheckInUpdateSerializer, CheckInCustomerUpdateSerializer
+    CheckInUpdateSerializer, CheckInCustomerUpdateSerializer, ReservationSerializer
 
 
 def generate_unique_temp_code():
@@ -399,8 +399,8 @@ class RoomUsageViewSet(viewsets.ViewSet):
         # 오늘 기준 활성 체크인 조회
         active_checkin = CheckIn.objects.filter(
             hotel_room=room,
-            check_in_date__lte=today,
-            check_out_date__gte=today,
+            # check_in_date__lte=today,
+            # check_out_date__gte=today,
             checked_out=False
         ).order_by('-check_in_date').first()
 
@@ -525,8 +525,8 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
             active_checkin = CheckIn.objects.filter(
                 hotel_room=room,
                 checked_out=False,
-                check_in_date__lte=today,
-                check_out_date__gte=today
+                # check_in_date__lte=today,
+                # check_out_date__gte=today
             ).first()
 
             # 기본값 (활성 체크인이 없으면 DB상의 status 그대로)
@@ -542,9 +542,9 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
                 start_date = active_checkin.check_in_date.strftime('%m/%d')
                 end_date = active_checkin.check_out_date.strftime('%m/%d')
                 if active_checkin.is_day_use:
-                    display_status = f"대실 • {room.status}"
+                    display_status = "대실" if room.status is None else f"대실 • {room.status}"
                 else:
-                    display_status = f"숙박 • {room.status}"
+                    display_status = "숙박" if room.status is None else f"숙박 • {room.status}"
 
                 user_profile = UserProfile.objects.get(user=active_checkin.user)
                 occupant_nationality = user_profile.nationality
@@ -568,3 +568,38 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
 
         return Response(result, status=status.HTTP_200_OK)
 
+
+class ReservationViewSet(viewsets.ModelViewSet):
+    queryset = Reservation.objects.all()
+    serializer_class = ReservationSerializer
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                name="basespace_id",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_INTEGER,
+                description="BaseSpace ID로 예약 리스트 필터링",
+                required=False
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Reservation.objects.none()
+
+        user = self.request.user
+        user_profile = user.profile
+        if user_profile.role == "GENERAL":
+            return Reservation.objects.filter(user=user).order_by("-reservation_date")
+        else:
+            basespace_id = self.request.query_params.get("basespace_id")
+            if basespace_id:
+                return Reservation.objects.filter(
+                    space__basespace_id=basespace_id
+                ).order_by("-reservation_date")
+            return Reservation.objects.none()

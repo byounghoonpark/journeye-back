@@ -100,11 +100,12 @@ class ManagerChatRoomSerializer(serializers.ModelSerializer):
     room_type = serializers.CharField(source='checkin.hotel_room.room_type.name')
     guest_nationality = serializers.CharField(source='checkin.user.profile.nationality')
     guest_profile_image = serializers.ImageField(source='checkin.user.profile.profile_picture')
+    hotel_profile_image = serializers.ImageField(source='checkin.hotel_room.room_type.basespace.photos.first.image')
     messages = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatRoom
-        fields = ['id', 'room_number', 'room_type', 'guest_nationality', 'guest_profile_image', 'messages']
+        fields = ['id', 'room_number', 'room_type', 'guest_nationality', 'guest_profile_image', 'hotel_profile_image', 'messages']
 
     def get_messages(self, obj):
         messages = Message.objects.filter(room=obj).order_by('created_at')
@@ -144,10 +145,16 @@ class CustomerChatRoomSerializer(serializers.ModelSerializer):
         return [{'date': date, 'messages': msgs} for date, msgs in grouped_messages.items()]
 
     def format_message(self, message, chat_room):
+        request = self.context.get('request')
         korea_tz = pytz.timezone('Asia/Seoul')
         local_time = message.created_at.astimezone(korea_tz)
         formatted_time = local_time.strftime('%I:%M %p')
         message_data = MessageSerializer(message).data
         message_data['created_at'] = formatted_time
-        message_data['sender'] = chat_room.checkin.hotel_room.room_type.basespace.name
+        if request:
+            if message.sender == request.user:
+                message_data['sender'] = message.sender.username
+            else:
+                message_data['sender'] = chat_room.checkin.hotel_room.room_type.basespace.name
+                message_data['content'] = message_data.get('translated_content')
         return message_data

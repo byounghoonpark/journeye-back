@@ -104,6 +104,15 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             "chat_room": serializer.data
         }, status=status.HTTP_201_CREATED)
 
+    @swagger_auto_schema(manual_parameters=[
+        openapi.Parameter(
+            'is_translated',
+            openapi.IN_QUERY,
+            description="True일 경우 고객 메시지를 번역한 내용을 보여줍니다.",
+            type=openapi.TYPE_BOOLEAN,
+            required=False
+        )
+    ])
     def retrieve(self, request, *args, **kwargs):
         """
         특정 채팅방의 상세 정보를 반환합니다.
@@ -120,12 +129,22 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         participant.last_read_time = now()
         participant.save()
 
-        if hasattr(request.user, 'profile') and request.user.profile.role in ['ADMIN', 'MANAGER']:
-            serializer = ManagerChatRoomSerializer(instance)
-        else:
-            serializer = CustomerChatRoomSerializer(instance)
+        is_translated = request.query_params.get("is_translated", "false").lower() == "true"
 
-        return Response(serializer.data)
+        if hasattr(request.user, 'profile') and request.user.profile.role in ['ADMIN', 'MANAGER']:
+            serializer = ManagerChatRoomSerializer(instance, context={'request': request})
+        else:
+            serializer = CustomerChatRoomSerializer(instance, context={'request': request})
+
+        data = serializer.data
+
+        if is_translated and "messages" in data:
+            customer_username = instance.checkin.user.username
+            for message in data["messages"]:
+                if message.get("sender") == customer_username:
+                    message["content"] = message.get("translated_content", message.get("content"))
+
+        return Response(data)
 
 
     @action(detail=True, methods=['post'])
