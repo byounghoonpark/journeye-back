@@ -55,7 +55,7 @@ class Review(models.Model):
     content = models.TextField()
     rating = models.FloatField(verbose_name='별점')
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     def __str__(self):
         return f"Review {self.id} by {self.user.username}"

@@ -12,7 +12,9 @@ from .views import (
     EmailLoginView,
     EmailCodeLoginView,
     ChangePasswordView,
-    ResetPasswordView, UserProfileUpdateView,
+    ResetPasswordView,
+    UserProfileUpdateView,
+    VerifyPasswordView
 )
 
 urlpatterns = [
@@ -28,4 +30,5 @@ urlpatterns = [
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
     path('profile/update/', UserProfileUpdateView.as_view(), name='profile-update'),
+    path("verify-password/", VerifyPasswordView.as_view(), name="verify-password"),
 ]

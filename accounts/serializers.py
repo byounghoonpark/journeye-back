@@ -2,17 +2,17 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from datetime import timedelta
+from accounts.models import UserProfile
 
-from accounts.models import UserProfile, UserRole  # UserProfile 모델 사용
-
-class UserProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserProfile
-        fields = [
-            'profile_picture',
-            'nationality',
-            'phone_number'
-        ]
+# class UserProfileSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = UserProfile
+#         fields = [
+#             'profile_picture',
+#             'nationality',
+#             'phone_number'
+#         ]
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(
@@ -89,7 +89,6 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
             raise serializers.ValidationError("이메일과 비밀번호를 입력해주세요.")
 
         try:
-            # 이메일은 회원가입 시 UniqueValidator로 중복검증했으므로 단일 사용자만 존재합니다.
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             raise serializers.ValidationError("해당 이메일의 사용자가 존재하지 않습니다.")
@@ -98,6 +97,18 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
             raise serializers.ValidationError("비밀번호가 올바르지 않습니다.")
 
         refresh = self.get_token(user)
+
+
+        default_lifetime = timedelta(hours=1)
+        # 연장 만료 시간: 예를 들어 2시간 (원하는 시간으로 설정 가능)
+        extended_lifetime = timedelta(hours=24)
+
+        # 사용자 프로필의 role 필드를 통해 역할 확인 (ADMIN, MANAGER인 경우 연장)
+        if hasattr(user, 'profile') and user.profile.role in ['ADMIN', 'MANAGER']:
+            refresh.access_token.set_exp(lifetime=extended_lifetime)
+        else:
+            refresh.access_token.set_exp(lifetime=default_lifetime)
+
         return {
             "access": str(refresh.access_token),
             "refresh": str(refresh),

@@ -10,6 +10,8 @@ from rest_framework.response import Response
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+
 from bookings.models import CheckIn
 from .models import ChatRoom, Message, ChatRoomParticipant
 from .serializers import ChatRoomSerializer, MessageSerializer, ChatRoomListSerializer, ManagerChatRoomSerializer, \
@@ -85,8 +87,8 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         user = request.user
         check_in = CheckIn.objects.filter(
             user=user,
-            check_in_date__lte=now().date(),
-            check_out_date__gte=now().date(),
+            # check_in_date__lte=now().date(),
+            # check_out_date__gte=now().date(),
             checked_out=False
         ).first()
         if not check_in:
@@ -95,6 +97,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
             checkin=check_in,
             basespace=check_in.hotel_room.room_type.basespace,
         )
+        ChatRoomParticipant.objects.get_or_create(chatroom=chat_room, user=user)
         serializer = ChatRoomSerializer(chat_room)
         message = "채팅방이 생성되었습니다." if created else "기존 채팅방을 불러왔습니다."
         return Response({
@@ -302,3 +305,32 @@ class MessageViewSet(viewsets.ModelViewSet):
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UnreadChatRoomsCountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.profile.role not in ['ADMIN', 'MANAGER']:
+            return Response({"error": "권한이 없습니다."}, status=403)
+
+        # 관리자가 참여한 모든 채팅방 조회
+        chat_rooms = ChatRoom.objects.filter(participants__user=user)
+
+        # 읽지 않은 메시지가 있는 채팅방 수 계산
+        unread_chat_rooms_count = 0
+        for chat_room in chat_rooms:
+            participant = ChatRoomParticipant.objects.get(chatroom=chat_room, user=user)
+            if participant.last_read_time:
+                unread_messages_count = Message.objects.filter(
+                    room=chat_room,
+                    created_at__gt=participant.last_read_time
+                ).count()
+            else:
+                unread_messages_count = Message.objects.filter(room=chat_room).count()
+
+            if unread_messages_count > 0:
+                unread_chat_rooms_count += 1
+
+        return Response({"unread_chat_rooms_count": unread_chat_rooms_count})

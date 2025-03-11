@@ -5,7 +5,7 @@ from urllib.parse import parse_qs
 from spaces.models import BaseSpace
 from .models import ChatRoom, Message
 from .utils import translate_text
-
+from django.utils.timezone import localtime
 
 class MultiplexConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
@@ -117,6 +117,9 @@ class MultiplexConsumer(AsyncWebsocketConsumer):
                 file_type=file_type
             )
 
+
+            message_time_kst = localtime(message.created_at)
+
             payload = {
                 "type": "multiplex_message",  # 아래 multiplex_message 메서드가 처리합니다.
                 "sender": self.user.username,
@@ -125,7 +128,8 @@ class MultiplexConsumer(AsyncWebsocketConsumer):
                 "file_url": file_url,
                 "file_name": file_name,
                 "file_type": file_type,
-                "created_at": str(message.created_at),
+                "created_at_date": message_time_kst.strftime("%d/%m/%Y"),
+                "created_at_time": message_time_kst.strftime("%I:%M %p"),
             }
             # target 값에 따라 해당 그룹으로 메시지 전송
             if target == "chat":

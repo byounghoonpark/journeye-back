@@ -51,7 +51,7 @@ class UserRegistrationView(APIView):
         ]
     )
     def post(self, request):
-        """JWT 기반 회원가입 및 6자리 이메일 인증번호 전송 API"""
+        """JWT 기반 회원가입 API"""
         with transaction.atomic():
             serializer = UserRegistrationSerializer(data=request.data)
             if serializer.is_valid():
@@ -474,3 +474,33 @@ class UserProfileUpdateView(APIView):
                 "message": "Profile updated successfully"
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class VerifyPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_description="JWT 토큰과 비밀번호를 이용한 비밀번호 검증 API",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'password': openapi.Schema(type=openapi.TYPE_STRING, format="password", description="비밀번호"),
+            },
+            required=['password']
+        ),
+        responses={
+            200: openapi.Response(description="비밀번호가 올바릅니다."),
+            400: openapi.Response(description="잘못된 요청"),
+            403: openapi.Response(description="비밀번호가 올바르지 않습니다."),
+        }
+    )
+    def post(self, request):
+        user = request.user
+        password = request.data.get("password")
+
+        if not password:
+            return Response({"message": "비밀번호를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if check_password(password, user.password):
+            return Response({"message": "비밀번호가 올바릅니다."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"message": "비밀번호가 올바르지 않습니다."}, status=status.HTTP_403_FORBIDDEN)
