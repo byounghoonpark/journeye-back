@@ -46,6 +46,7 @@ class BaseSpacePhoto(models.Model):
 class Hotel(BaseSpace):
     additional_services = models.TextField(blank=True, null=True, verbose_name='부가서비스')
     facilities = models.TextField(blank=True, null=True, verbose_name='시설안내')
+    star_rating = models.PositiveIntegerField(null=True, blank=True, verbose_name='별 등급')
 
     # Hotel 고유 필드가 더 있다면 추가
     def __str__(self):
