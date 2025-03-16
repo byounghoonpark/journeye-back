@@ -67,7 +67,8 @@ INSTALLED_APPS = [
     'spaces',
     'accounts',
     'bookings',
-    'concierge'
+    'concierge',
+    'notifications'
 ]
 
 MIDDLEWARE = [

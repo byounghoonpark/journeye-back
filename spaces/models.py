@@ -53,11 +53,34 @@ class Hotel(BaseSpace):
         return self.name
 
 
-# Restaurant도 BaseSpace를 상속받음
-class Restaurant(BaseSpace):
-    # Restaurant 전용 필드가 있다면 추가
+class Facility(BaseSpace):
+    FACILITY_TYPES = [
+        ('transport', '교통'),
+        ('tourist_attraction', '관광 명소'),
+        ('activity', '액티비티'),
+        ('cultural_performance', '문화 공연'),
+        ('tour_program', '투어 프로그램'),
+        ('restaurant', '음식점'),
+        ('delivery', '배달'),
+        ('shopping', '쇼핑'),
+        ('rental_space', '공간 대여'),
+        ('medical', '의료'),
+        ('beauty', '미용'),
+        ('kids', '어린이'),
+    ]
+
+    facility_type = models.CharField(max_length=50, choices=FACILITY_TYPES, verbose_name="시설 유형")
+    opening_time = models.TimeField(blank=True, null=True, verbose_name="오픈 시간")
+    closing_time = models.TimeField(blank=True, null=True, verbose_name="마감 시간")
+    additional_info = models.JSONField(blank=True, null=True, verbose_name="기타 정보")
+
+    class Meta:
+        verbose_name = "시설"
+        verbose_name_plural = "시설 목록"
+
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_facility_type_display()})"
+
 
 class Service(models.Model):
     basespace = models.ForeignKey(

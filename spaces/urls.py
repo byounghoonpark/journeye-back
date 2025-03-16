@@ -6,7 +6,7 @@ from .views import (
     FloorViewSet,
     HotelRoomMemoViewSet,
     HotelRoomHistoryViewSet,
-    RestaurantViewSet
+    FacilityViewSet,
 )
 from rest_framework import routers
 
@@ -17,7 +17,7 @@ router.register(r'hotels', HotelViewSet)
 router.register(r'floors', FloorViewSet)
 router.register(r'hotel-room-memo', HotelRoomMemoViewSet)
 router.register(r'hotel-room-history', HotelRoomHistoryViewSet)
-router.register(r'restaurants', RestaurantViewSet)
+router.register(r'facilities', FacilityViewSet)
 urlpatterns = [
     path('', include(router.urls)),
 

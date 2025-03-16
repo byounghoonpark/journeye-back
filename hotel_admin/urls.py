@@ -28,10 +28,11 @@ urlpatterns = [
     path(r'swagger', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path(r'redoc', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc-v1'),
     path('admin/', admin.site.urls),
-    path('chat/', include('chat.urls')),  # chat 앱의 urls 포함
-    path('bookings/', include('bookings.urls')),  # bookings 앱의 urls 포함
-    path('accounts/',include('accounts.urls')),  # accounts 앱의 urls 포함
-    path('spaces/', include('spaces.urls')),  # spaces 앱의 urls 포함
+    path('accounts/',include('accounts.urls')),
+    path('bookings/', include('bookings.urls')),
+    path('chat/', include('chat.urls')),
+    path('notifications/', include('notifications.urls')),
+    path('spaces/', include('spaces.urls')),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

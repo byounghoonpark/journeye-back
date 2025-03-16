@@ -4,7 +4,6 @@ from .models import (
     Floor,
     BaseSpacePhoto,
     Hotel,
-    Restaurant,
     Service,
     Space,
     SpacePhoto,
@@ -19,7 +18,6 @@ admin.site.register(BaseSpace)
 admin.site.register(Floor)
 admin.site.register(BaseSpacePhoto)
 admin.site.register(Hotel)
-admin.site.register(Restaurant)
 admin.site.register(Service)
 admin.site.register(Space)
 admin.site.register(SpacePhoto)

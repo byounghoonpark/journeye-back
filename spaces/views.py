@@ -3,15 +3,30 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 
 from accounts.permissions import IsAdminOrManager
 from bookings.serializers import HotelRoomMemoSerializer, HotelRoomHistorySerializer
-from .models import HotelRoom, HotelRoomType, Hotel, SpacePhoto, Floor, HotelRoomHistory, HotelRoomMemo, Restaurant, \
-    BaseSpacePhoto
-from .serializers import HotelRoomSerializer, HotelRoomTypeSerializer, HotelSerializer, FloorSerializer, \
-    HotelDetailSerializer, RestaurantSerializer
+from .models import (
+    HotelRoom,
+    HotelRoomType,
+    Hotel,
+    SpacePhoto,
+    Floor,
+    HotelRoomHistory,
+    HotelRoomMemo,
+    Facility
+)
+
+from .serializers import (
+    HotelRoomSerializer,
+    HotelRoomTypeSerializer,
+    HotelSerializer,
+    FloorSerializer,
+    HotelDetailSerializer,
+    FacilitySerializer, FacilityDetailSerializer
+)
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -268,41 +283,37 @@ class HotelRoomHistoryViewSet(ModelViewSet):
         return response
 
 
-class RestaurantViewSet(ModelViewSet):
-    queryset = Restaurant.objects.all()
-    serializer_class = RestaurantSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+class FacilityViewSet(ModelViewSet):
+    queryset = Facility.objects.all()
+    serializer_class = FacilitySerializer
     parser_classes = [MultiPartParser, FormParser]
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['location']
 
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ["list", "retrieve", "get_detail"]:
             return [AllowAny()]
         return [IsAuthenticated(), IsAdminOrManager()]
 
     @swagger_auto_schema(
-        request_body=RestaurantSerializer,
+        request_body=FacilitySerializer,
         manual_parameters=[
             openapi.Parameter(
                 "photos",
                 openapi.IN_FORM,
                 type=openapi.TYPE_ARRAY,
                 items=openapi.Items(type=openapi.TYPE_FILE),
-                description="레스토랑 사진 업로드 (여러 파일 가능)"
+                description="시설 사진 업로드 (여러 파일 가능)"
             )
         ]
     )
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        restaurant = Restaurant.objects.get(id=response.data["id"])
-
-        photos = request.FILES.getlist("photos")
-        for image_file in photos:
-            BaseSpacePhoto.objects.create(basespace=restaurant, image=image_file)
-
+        facility = Facility.objects.get(id=response.data['id'])
+        facility.managers.add(request.user)  # 등록한 사람을 관리자로 추가
         return response
 
-    def perform_create(self, serializer):
-        restaurant = serializer.save()
-        restaurant.managers.add(self.request.user)
+
+    @action(detail=True, methods=['get'], url_path='detail')
+    def get_detail(self, request, pk=None):
+        facility = self.get_object()
+        serializer = FacilityDetailSerializer(facility)
+        return Response(serializer.data)

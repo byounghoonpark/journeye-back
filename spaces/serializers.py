@@ -3,8 +3,16 @@ from django.contrib.auth.models import User
 
 from accounts.models import UserProfile
 from bookings.models import Review
-from bookings.serializers import ReviewSerializer
-from spaces.models import Hotel, SpacePhoto, HotelRoom, HotelRoomType, BaseSpacePhoto, Floor, Service, Restaurant
+from spaces.models import (
+    Hotel,
+    Facility,
+    SpacePhoto,
+    HotelRoom,
+    HotelRoomType,
+    BaseSpacePhoto,
+    Floor,
+    Service
+)
 from django.contrib.gis.geos import Point
 from django.db.models import Avg
 
@@ -168,28 +176,30 @@ class HotelDetailSerializer(serializers.ModelSerializer):
     reviews = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
-    nearby_restaurants = serializers.SerializerMethodField()
+    nearby_facilities = serializers.SerializerMethodField()
 
     class Meta:
         model = Hotel
         fields = [
             'id', 'name', 'introduction', 'location', 'address', 'phone', 'star_rating',
-            'services', 'reviews', 'average_rating', 'review_count',
-            'nearby_restaurants'
+            'services', 'reviews', 'average_rating', 'review_count', 'nearby_facilities'
         ]
 
     def get_services(self, obj):
         services = Service.objects.filter(basespace=obj)
         return [{'name': service.name, 'description': service.description, 'price': service.price} for service in services]
 
-    def get_nearby_restaurants(self, obj):
-        nearby_restaurants = Restaurant.objects.filter(location__distance_lte=(obj.location, 1000))
+    def get_nearby_facilities(self, obj):
+        nearby_facilities = Facility.objects.filter(location__distance_lte=(obj.location, 1000))
         return [{
-            'name': restaurant.name,
-            'address': restaurant.address,
-            'phone': restaurant.phone,
-            'photo': restaurant.photos.first().image.url if restaurant.photos.exists() else None
-        } for restaurant in nearby_restaurants]
+            'name': facility.name,
+            'address': facility.address,
+            'phone': facility.phone,
+            'latitude': facility.location.y if facility.location else None,
+            'longitude': facility.location.x if facility.location else None,
+            'photo': facility.photos.first().image.url if facility.photos.exists() else None,
+            'basespace_id': facility.basespace_ptr_id
+        } for facility in nearby_facilities]
 
     def get_reviews(self, obj):
         reviews = Review.objects.filter(check_in__hotel_room__room_type__basespace=obj)
@@ -204,33 +214,32 @@ class HotelDetailSerializer(serializers.ModelSerializer):
     def get_review_count(self, obj):
         return Review.objects.filter(check_in__hotel_room__room_type__basespace=obj).count()
 
-
-class RestaurantSerializer(serializers.ModelSerializer):
+class FacilitySerializer(serializers.ModelSerializer):
+    photos = serializers.SerializerMethodField()
     latitude = serializers.FloatField(required=True, write_only=True, help_text="위도 (예: 37.5665)")
     longitude = serializers.FloatField(required=True, write_only=True, help_text="경도 (예: 126.9780)")
-    photos = serializers.SerializerMethodField()
 
     class Meta:
-        model = Restaurant
-        fields = ['id', 'name', 'latitude', 'longitude', 'address', 'phone', 'introduction', 'is_featured', 'photos']
+        model = Facility
+        fields = ['id', 'name', 'address', 'phone', 'introduction', 'is_featured', 'facility_type', 'opening_time',
+                  'closing_time', 'latitude', 'longitude', 'photos', 'additional_info']
 
     def get_photos(self, obj):
         return [photo.image.url for photo in obj.photos.all()]
 
     def create(self, validated_data):
-        photos = validated_data.pop('photos', [])
         latitude = validated_data.pop('latitude')
         longitude = validated_data.pop('longitude')
         validated_data['location'] = Point(longitude, latitude)
-        restaurant = Restaurant.objects.create(**validated_data)
+        photos = self.context['request'].FILES.getlist('photos')
+        facility = Facility.objects.create(**validated_data)
 
         for photo in photos:
-            BaseSpacePhoto.objects.create(basespace=restaurant, image=photo)
+            BaseSpacePhoto.objects.create(basespace=facility, image=photo)
 
-        return restaurant
+        return facility
 
     def update(self, instance, validated_data):
-        photos = validated_data.pop('photos', [])
         latitude = validated_data.pop('latitude', None)
         longitude = validated_data.pop('longitude', None)
 
@@ -241,7 +250,31 @@ class RestaurantSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
+        photos = self.context['request'].FILES.getlist('photos')
         for photo in photos:
             BaseSpacePhoto.objects.create(basespace=instance, image=photo)
 
         return instance
+
+
+class FacilityDetailSerializer(serializers.ModelSerializer):
+    nearby_hotels = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Facility
+        fields = [
+            'id', 'name', 'introduction', 'location', 'address', 'phone', 'facility_type',
+            'opening_time', 'closing_time', 'additional_info', 'nearby_hotels'
+        ]
+
+    def get_nearby_hotels(self, obj):
+        nearby_hotels = Hotel.objects.filter(location__distance_lte=(obj.location, 1000))
+        return [{
+            'name': hotel.name,
+            'address': hotel.address,
+            'phone': hotel.phone,
+            'latitude': hotel.location.y if hotel.location else None,
+            'longitude': hotel.location.x if hotel.location else None,
+            'photo': hotel.photos.first().image.url if hotel.photos.exists() else None,
+            'basespace_id': hotel.basespace_ptr_id
+        } for hotel in nearby_hotels]
