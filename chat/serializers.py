@@ -99,8 +99,8 @@ class ManagerChatRoomSerializer(serializers.ModelSerializer):
     room_number = serializers.CharField(source='checkin.hotel_room.room_number')
     room_type = serializers.CharField(source='checkin.hotel_room.room_type.name')
     guest_nationality = serializers.CharField(source='checkin.user.profile.nationality')
-    guest_profile_image = serializers.ImageField(source='checkin.user.profile.profile_picture')
-    hotel_profile_image = serializers.ImageField(source='checkin.hotel_room.room_type.basespace.photos.first.image')
+    guest_profile_image = serializers.ImageField(source='checkin.user.profile.profile_picture', required=False)
+    hotel_profile_image = serializers.ImageField(source='checkin.hotel_room.room_type.basespace.photos.first.image', required=False)
     messages = serializers.SerializerMethodField()
 
     class Meta:
@@ -127,7 +127,7 @@ class ManagerChatRoomSerializer(serializers.ModelSerializer):
 
 
 class CustomerChatRoomSerializer(serializers.ModelSerializer):
-    hotel_profile_image = serializers.ImageField(source='checkin.hotel_room.room_type.basespace.photos.first.image')
+    hotel_profile_image = serializers.ImageField(source='checkin.hotel_room.room_type.basespace.photos.first.image', required=False)
     messages = serializers.SerializerMethodField()
 
     class Meta:
