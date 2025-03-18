@@ -2,6 +2,8 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
 from urllib.parse import parse_qs
+
+from notifications.utils import send_notification_to_users
 from spaces.models import BaseSpace
 from .models import ChatRoom, Message
 from .utils import translate_text
@@ -152,6 +154,17 @@ class MultiplexConsumer(AsyncWebsocketConsumer):
             else:
                 await self.send(json.dumps({"error": "잘못된 target 값입니다."}))
 
+            await send_notification_to_users(
+                [customer.id],
+                {
+                    "sender": self.user,
+                    "title": "새 채팅 메시지",
+                    "content": content,
+                    "notification_type": "MESSAGE",
+                    "created_at": message.created_at.isoformat(),
+                }
+            )
+
             if self.chat_room.is_answered:
                 self.chat_room.is_answered = False
                 await sync_to_async(self.chat_room.save, thread_sensitive=True)()
@@ -164,4 +177,8 @@ class MultiplexConsumer(AsyncWebsocketConsumer):
 
     async def manager_notification(self, event):
         """ 매니저에게 알림을 전달하는 함수 """
+        await self.send(text_data=json.dumps(event, ensure_ascii=False))
+
+    async def send_notification(self, event):
+        """ 알림을 전달하는 함수 """
         await self.send(text_data=json.dumps(event, ensure_ascii=False))
