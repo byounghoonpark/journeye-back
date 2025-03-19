@@ -542,9 +542,9 @@ class HotelRoomStatusViewSet(viewsets.ViewSet):
                 start_date = active_checkin.check_in_date.strftime('%m/%d')
                 end_date = active_checkin.check_out_date.strftime('%m/%d')
                 if active_checkin.is_day_use:
-                    display_status = "대실" if room.status is None else f"대실 • {room.status}"
+                    display_status = "대실" if room.status is None else f"대실•{room.status}"
                 else:
-                    display_status = "숙박" if room.status is None else f"숙박 • {room.status}"
+                    display_status = "숙박" if room.status is None else f"숙박•{room.status}"
 
                 user_profile = UserProfile.objects.get(user=active_checkin.user)
                 occupant_nationality = user_profile.nationality
