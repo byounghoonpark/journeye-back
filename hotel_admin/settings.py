@@ -3,6 +3,9 @@ import os
 from datetime import timedelta
 import json
 import sentry_sdk
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

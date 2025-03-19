@@ -51,6 +51,7 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
     guest_name = serializers.CharField(source='checkin.user.username')
     guest_nationality = serializers.CharField(source='checkin.user.profile.nationality')
     last_message = serializers.SerializerMethodField()
+    translated_last_message = serializers.SerializerMethodField()
     last_message_time = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     is_answered = serializers.BooleanField()
@@ -58,11 +59,15 @@ class ChatRoomListSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatRoom
         fields = ['id', 'room_number', 'room_type', 'guest_name', 'guest_nationality',
-                  'last_message', 'last_message_time', 'unread_count', 'is_answered']
+                  'last_message', 'translated_last_message', 'last_message_time', 'unread_count', 'is_answered']
 
     def get_last_message(self, obj):
         last_message = Message.objects.filter(room=obj).order_by('-created_at').first()
         return last_message.content if last_message else None
+
+    def get_translated_last_message(self, obj):
+        last_message = Message.objects.filter(room=obj).order_by('-created_at').first()
+        return last_message.translated_content if last_message else None
 
     def get_last_message_time(self, obj):
         last_message = Message.objects.filter(room=obj).order_by('-created_at').first()
@@ -102,10 +107,11 @@ class ManagerChatRoomSerializer(serializers.ModelSerializer):
     guest_profile_image = serializers.ImageField(source='checkin.user.profile.profile_picture', required=False)
     hotel_profile_image = serializers.ImageField(source='checkin.hotel_room.room_type.basespace.photos.first.image', required=False)
     messages = serializers.SerializerMethodField()
+    is_answered = serializers.BooleanField()
 
     class Meta:
         model = ChatRoom
-        fields = ['id', 'room_number', 'room_type', 'guest_nationality', 'guest_profile_image', 'hotel_profile_image', 'messages']
+        fields = ['id', 'room_number', 'room_type', 'guest_nationality', 'guest_profile_image', 'hotel_profile_image', 'is_answered', 'messages']
 
     def get_messages(self, obj):
         messages = Message.objects.filter(room=obj).order_by('created_at')
