@@ -15,9 +15,7 @@ SECRET_KEY = 'django-insecure-1t#x^x30(pbukm9edejt@#ce&g#()d-#ag()p*^1=j+snrp)th
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0", "127.0.0.1:8001",
-    "localhost:8001", "127.0.0.1:8080",
-    "localhost:8080"]
+ALLOWED_HOSTS = ["*"]
 
 CORS_ALLOWED_HOSTS = [
     "http://127.0.0.1:8000",
@@ -114,11 +112,11 @@ with open(os.path.join(BASE_DIR, 'secrets.json')) as config_file:
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': secret_config['DB_NAME'],
-        'USER': secret_config['DB_USER'],
-        'PASSWORD': secret_config['DB_PASSWORD'],
-        'HOST': secret_config['DB_HOST'],
-        'PORT': secret_config['DB_PORT'],
+        'NAME': os.environ.get("DB_NAME", "postgres"),
+        'USER': os.environ.get("DB_USER", "postgres"),
+        'PASSWORD': os.environ.get("DB_PASSWORD", "12345678"),
+        'HOST': os.environ.get("DB_HOST", "db"),
+        'PORT': os.environ.get("DB_PORT", "5432"),
     }
 }
 
@@ -126,7 +124,12 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(secret_config['REDIS_HOST'], secret_config['REDIS_PORT'])],
+            "hosts": [
+                (
+                    os.environ.get("REDIS_HOST", "redis"),
+                    int(os.environ.get("REDIS_PORT", "6379"))
+                )
+            ],
         },
     },
 }
