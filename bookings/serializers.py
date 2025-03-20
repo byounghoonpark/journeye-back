@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
+from chat.models import ChatRoom
 from spaces.models import HotelRoomMemo, HotelRoomHistory
 from .models import CheckIn, Reservation, Review, ReviewPhoto
 from accounts.models import UserProfile
@@ -153,3 +154,50 @@ class CheckInCustomerUpdateSerializer(serializers.Serializer):
     phone = serializers.CharField(required=False)
     nationality = serializers.CharField(required=False)
     language = serializers.CharField(required=False)
+
+
+class UserReservationSerializer(serializers.ModelSerializer):
+    hotel_name = serializers.CharField(source='space.basespace.name')
+    space_name = serializers.CharField(source='space.name')
+    hotel_address = serializers.CharField(source='space.basespace.address')
+    hotel_phone = serializers.CharField(source='space.basespace.phone')
+    checkin_status = serializers.SerializerMethodField()
+    has_review = serializers.SerializerMethodField()
+    has_chatroom = serializers.SerializerMethodField()
+    reservation_date = serializers.SerializerMethodField()
+    start_date = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+    space_photo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Reservation
+        fields = [
+            'reservation_date', 'hotel_name', 'space_name', 'start_date', 'end_date',
+            'hotel_address', 'hotel_phone', 'checkin_status', 'has_review', 'has_chatroom', 'space_photo'
+        ]
+
+    def get_checkin_status(self, obj):
+        return CheckIn.objects.filter(reservation=obj).exists()
+
+    def get_has_review(self, obj):
+        checkin = CheckIn.objects.filter(reservation=obj).first()
+        return Review.objects.filter(check_in=checkin).exists() if checkin else False
+
+    def get_has_chatroom(self, obj):
+        checkin = CheckIn.objects.filter(reservation=obj).first()
+        if checkin:
+            chatroom = ChatRoom.objects.filter(checkin=checkin).first()
+            return chatroom.id if chatroom else []
+        return []
+
+    def get_reservation_date(self, obj):
+        return obj.reservation_date.strftime('%m/%d/%Y')
+
+    def get_start_date(self, obj):
+        return obj.start_date.strftime('%m/%d/%Y')
+
+    def get_end_date(self, obj):
+        return obj.end_date.strftime('%m/%d/%Y')
+
+    def get_space_photo(self, obj):
+        return obj.space.photos.first().image.url if obj.space.photos.exists() else None

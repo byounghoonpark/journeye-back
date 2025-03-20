@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 
 from accounts.models import UserProfile
-from bookings.models import Review
+from bookings.models import Review, ReviewPhoto
 from spaces.models import (
     Hotel,
     Facility,
@@ -177,12 +177,14 @@ class HotelDetailSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
     nearby_facilities = serializers.SerializerMethodField()
+    photos = serializers.SerializerMethodField()
+    review_photos = serializers.SerializerMethodField()
 
     class Meta:
         model = Hotel
         fields = [
-            'id', 'name', 'introduction', 'location', 'address', 'phone', 'star_rating',
-            'services', 'reviews', 'average_rating', 'review_count', 'nearby_facilities'
+            'id', 'photos', 'name', 'introduction', 'location', 'address', 'phone', 'star_rating',
+            'services', 'review_photos', 'reviews', 'average_rating', 'review_count', 'nearby_facilities'
         ]
 
     def get_services(self, obj):
@@ -213,6 +215,13 @@ class HotelDetailSerializer(serializers.ModelSerializer):
 
     def get_review_count(self, obj):
         return Review.objects.filter(check_in__hotel_room__room_type__basespace=obj).count()
+
+    def get_photos(self, obj):
+        return [photo.image.url for photo in obj.photos.all()]
+
+    def get_review_photos(self, obj):
+        review_photos = ReviewPhoto.objects.filter(review__check_in__hotel_room__room_type__basespace=obj).order_by('-id')[:20]
+        return [photo.image.url for photo in review_photos]
 
 class FacilitySerializer(serializers.ModelSerializer):
     photos = serializers.SerializerMethodField()

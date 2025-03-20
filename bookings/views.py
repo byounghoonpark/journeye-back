@@ -1,6 +1,9 @@
 import random
 import string
 from datetime import timedelta
+
+from rest_framework.views import APIView
+
 from hotel_admin import settings
 
 from .models import CheckIn, Reservation, HotelRoom, Review, ReviewPhoto
@@ -25,7 +28,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 
 from .serializers import CheckInRequestSerializer, CheckInSerializer, CheckOutRequestSerializer, ReviewSerializer, \
-    CheckInUpdateSerializer, CheckInCustomerUpdateSerializer, ReservationSerializer
+    CheckInUpdateSerializer, CheckInCustomerUpdateSerializer, ReservationSerializer, UserReservationSerializer
 
 
 def generate_unique_temp_code():
@@ -603,3 +606,14 @@ class ReservationViewSet(viewsets.ModelViewSet):
                     space__basespace_id=basespace_id
                 ).order_by("-reservation_date")
             return Reservation.objects.none()
+
+
+class ReservationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        reservations = Reservation.objects.filter(user=user)
+        serializer = UserReservationSerializer(reservations, many=True)
+        return Response(serializer.data)
+

@@ -14,6 +14,8 @@ from rest_framework.generics import get_object_or_404, RetrieveAPIView
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from accounts.models import UserProfile
+from bookings.models import CheckIn
+from chat.models import ChatRoom
 from spaces.models import  BaseSpace
 from .serializers import UserRegistrationSerializer, SpaceManagerAssignSerializer, UserDetailSerializer, \
     EmailTokenObtainPairSerializer, UserProfileUpdateSerializer
@@ -303,9 +305,26 @@ class EmailCodeLoginView(APIView):
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
+        # 사용자의 체크인 정보 조회
+        check_in = CheckIn.objects.filter(
+            temp_code=email_code,
+            checked_out=False
+        ).first()
+
+        chat_room_id = None
+        basespace_id = None
+        if check_in:
+            basespace_id = check_in.hotel_room.room_type.basespace.id
+            # 사용자가 속한 채팅방 중 가장 최근의 채팅방 조회
+            chat_room = ChatRoom.objects.filter(checkin=check_in).order_by('-created_at').first()
+            if chat_room:
+                chat_room_id = chat_room.id
+
         return Response({
             "access_token": access_token,
             "refresh_token": refresh_token,
+            "chat_room_id": chat_room_id,
+            "basespace_id": basespace_id,
             "message": "로그인 성공"
         }, status=status.HTTP_200_OK)
 

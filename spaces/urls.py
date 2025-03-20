@@ -6,7 +6,7 @@ from .views import (
     FloorViewSet,
     HotelRoomMemoViewSet,
     HotelRoomHistoryViewSet,
-    FacilityViewSet,
+    FacilityViewSet, FeaturedBaseSpaceListView,
 )
 from rest_framework import routers
 
@@ -20,5 +20,5 @@ router.register(r'hotel-room-history', HotelRoomHistoryViewSet)
 router.register(r'facilities', FacilityViewSet)
 urlpatterns = [
     path('', include(router.urls)),
-
+    path('featured-spaces/', FeaturedBaseSpaceListView.as_view(), name='featured-spaces'),
 ]

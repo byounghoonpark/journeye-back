@@ -36,7 +36,7 @@ class Floor(models.Model):
 
 class BaseSpacePhoto(models.Model):
     basespace = models.ForeignKey(BaseSpace, on_delete=models.CASCADE, related_name='photos')
-    image = models.ImageField(upload_to='photos/basespace_photos/', verbose_name='공간 사진')
+    image = models.ImageField(upload_to='basespace_photos/', verbose_name='공간 사진')
 
     def __str__(self):
         return f"Photo for {self.basespace.name}"
@@ -121,7 +121,7 @@ class Space(models.Model):
 # SpacePhoto 모델: 한 Space에 여러 사진을 연결하는 1:N 관계를 구성합니다.
 class SpacePhoto(models.Model):
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name='photos')
-    image = models.ImageField(upload_to='photos/space_photos/')
+    image = models.ImageField(upload_to='space_photos/')
 
     def __str__(self):
         return f"Photo for {self.space.name}"

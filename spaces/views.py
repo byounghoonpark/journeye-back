@@ -3,8 +3,10 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
+from geopy.distance import geodesic
 
 from accounts.permissions import IsAdminOrManager
 from bookings.serializers import HotelRoomMemoSerializer, HotelRoomHistorySerializer
@@ -16,7 +18,7 @@ from .models import (
     Floor,
     HotelRoomHistory,
     HotelRoomMemo,
-    Facility
+    Facility, BaseSpace
 )
 
 from .serializers import (
@@ -317,3 +319,49 @@ class FacilityViewSet(ModelViewSet):
         facility = self.get_object()
         serializer = FacilityDetailSerializer(facility)
         return Response(serializer.data)
+
+
+class FeaturedBaseSpaceListView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        operation_description="특정 위치에서 is_featured가 True인 BaseSpace 리스트를 반환합니다.",
+        manual_parameters=[
+            openapi.Parameter('latitude', openapi.IN_QUERY, type=openapi.TYPE_NUMBER, description='위도', required=True),
+            openapi.Parameter('longitude', openapi.IN_QUERY, type=openapi.TYPE_NUMBER, description='경도', required=True),
+        ],
+        responses={200: '성공적으로 리스트를 반환했습니다.'}
+    )
+    def get(self, request):
+        latitude = request.query_params.get('latitude')
+        longitude = request.query_params.get('longitude')
+
+        if not latitude or not longitude:
+            return Response({"error": "위도와 경도를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user_location = (float(latitude), float(longitude))
+        except ValueError:
+            return Response({"error": "위도와 경도는 숫자여야 합니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        featured_spaces = BaseSpace.objects.filter(is_featured=True)
+
+        result = []
+        for space in featured_spaces:
+            space_location = (space.location.y, space.location.x)
+            distance = geodesic(user_location, space_location).meters
+            distance_km = round(distance / 1000, 1)
+            first_photo = space.photos.first()
+            result.append({
+                "id": space.id,
+                "name": space.name,
+                "latitude": space.location.y,
+                "longitude": space.location.x,
+                "distance": distance_km,
+                "address": space.address,
+                "introduction": space.introduction,
+                "is_hotel": hasattr(space, 'hotel'),
+                "first_photo": first_photo.image.url if first_photo else None,
+            })
+
+        return Response(result, status=status.HTTP_200_OK)
