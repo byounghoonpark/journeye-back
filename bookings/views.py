@@ -28,7 +28,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 
 from .serializers import CheckInRequestSerializer, CheckInSerializer, CheckOutRequestSerializer, ReviewSerializer, \
-    CheckInUpdateSerializer, CheckInCustomerUpdateSerializer, ReservationSerializer, UserReservationSerializer
+    CheckInUpdateSerializer, CheckInCustomerUpdateSerializer, ReservationSerializer, UserReservationSerializer, \
+    CheckInReservationSerializer
 
 
 def generate_unique_temp_code():
@@ -617,3 +618,11 @@ class ReservationListView(APIView):
         serializer = UserReservationSerializer(reservations, many=True)
         return Response(serializer.data)
 
+
+class CheckInReservationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, checkin_id):
+        checkin = get_object_or_404(CheckIn, id=checkin_id)
+        serializer = CheckInReservationSerializer(checkin)
+        return Response(serializer.data, status=status.HTTP_200_OK)

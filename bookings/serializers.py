@@ -157,6 +157,7 @@ class CheckInCustomerUpdateSerializer(serializers.Serializer):
 
 
 class UserReservationSerializer(serializers.ModelSerializer):
+    checkin_id = serializers.SerializerMethodField()
     hotel_name = serializers.CharField(source='space.basespace.name')
     space_name = serializers.CharField(source='space.name')
     hotel_address = serializers.CharField(source='space.basespace.address')
@@ -172,9 +173,13 @@ class UserReservationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
         fields = [
-            'reservation_date', 'hotel_name', 'space_name', 'start_date', 'end_date',
+            'checkin_id', 'reservation_date', 'hotel_name', 'space_name', 'start_date', 'end_date',
             'hotel_address', 'hotel_phone', 'checkin_status', 'has_review', 'has_chatroom', 'space_photo'
         ]
+
+    def get_checkin_id(self, obj):
+        checkin = CheckIn.objects.filter(reservation=obj).first()
+        return checkin.id if checkin else None
 
     def get_checkin_status(self, obj):
         return CheckIn.objects.filter(reservation=obj).exists()
@@ -201,3 +206,25 @@ class UserReservationSerializer(serializers.ModelSerializer):
 
     def get_space_photo(self, obj):
         return obj.space.photos.first().image.url if obj.space.photos.exists() else None
+
+
+class CheckInReservationSerializer(serializers.ModelSerializer):
+    hotel_name = serializers.CharField(source='hotel_room.room_type.basespace.name')
+    room_type = serializers.CharField(source='hotel_room.room_type.name')
+    start_date = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+    hotel_address = serializers.CharField(source='hotel_room.room_type.basespace.address')
+    room_photo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CheckIn
+        fields = ['hotel_name', 'room_type', 'start_date', 'end_date', 'hotel_address', 'room_photo']
+
+    def get_room_photo(self, obj):
+        return obj.hotel_room.room_type.photos.first().image.url if obj.hotel_room.room_type.photos.exists() else None
+
+    def get_start_date(self, obj):
+        return obj.reservation.start_date.strftime('%m/%d/%Y')
+
+    def get_end_date(self, obj):
+        return obj.reservation.end_date.strftime('%m/%d/%Y')

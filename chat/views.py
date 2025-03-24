@@ -1,5 +1,6 @@
 import boto3
 from django.conf import settings
+from django.http import Http404
 from django.utils.timezone import now
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -53,8 +54,6 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         # 일반 사용자의 경우 체크인 정보를 기반으로 채팅방 반환
         check_in = CheckIn.objects.filter(
             user=user,
-            check_in_date__lte=now().date(),
-            check_out_date__gte=now().date(),
             checked_out=False
         ).first()
         if check_in:

@@ -323,8 +323,10 @@ class EmailCodeLoginView(APIView):
         return Response({
             "access_token": access_token,
             "refresh_token": refresh_token,
+            "user_name": user.username,
             "chat_room_id": chat_room_id,
             "basespace_id": basespace_id,
+            "checkin_id": check_in.id if check_in else None,
             "message": "로그인 성공"
         }, status=status.HTTP_200_OK)
 
