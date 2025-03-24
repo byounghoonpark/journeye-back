@@ -367,6 +367,11 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
         check_in_id = request.data.get('check_in')
         check_in = get_object_or_404(CheckIn, id=check_in_id, user=request.user, checked_out=True)
+
+        # 체크인 아이디당 하나의 리뷰만 작성할 수 있도록 검증
+        if Review.objects.filter(check_in=check_in).exists():
+            return Response({"error": "이미 이 체크인에 대한 리뷰가 존재합니다."}, status=status.HTTP_400_BAD_REQUEST)
+
         review = serializer.save(user=request.user, check_in=check_in)
 
         photos = request.FILES.getlist('photos')
