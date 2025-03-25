@@ -631,3 +631,16 @@ class CheckInReservationView(APIView):
         checkin = get_object_or_404(CheckIn, id=checkin_id)
         serializer = CheckInReservationSerializer(checkin)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CheckInStatusView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, checkin_id):
+        check_in = get_object_or_404(CheckIn, id=checkin_id)
+        review_exists = Review.objects.filter(check_in=check_in).exists()
+        data = {
+            "checked_out": check_in.checked_out,
+            "review_written": review_exists
+        }
+        return Response(data, status=status.HTTP_200_OK)

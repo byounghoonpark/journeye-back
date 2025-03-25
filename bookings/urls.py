@@ -1,6 +1,6 @@
 from django.urls import path, include
 from .views import CheckInAndOutViewSet, ReviewViewSet, RoomUsageViewSet, HotelRoomStatusViewSet, ReservationViewSet, \
-    ReservationListView, CheckInReservationView
+    ReservationListView, CheckInReservationView, CheckInStatusView
 from rest_framework import routers
 router = routers.DefaultRouter()
 router.register(r'reviews', ReviewViewSet)
@@ -13,5 +13,6 @@ urlpatterns = [
     path("guest_info/", CheckInAndOutViewSet.as_view({"patch": "update_customer_info"}), name="guest_info"),
     path('reservations/', ReservationListView.as_view(), name='reservation-list'),
     path("checkin/<int:checkin_id>/reservation/", CheckInReservationView.as_view(), name="checkin-reservation"),
+    path("checkin/<int:checkin_id>/status/", CheckInStatusView.as_view(), name="checkin-status"),
     path('', include(router.urls)),
 ]
