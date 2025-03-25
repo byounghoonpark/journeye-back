@@ -366,7 +366,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         check_in_id = request.data.get('check_in')
-        check_in = get_object_or_404(CheckIn, id=check_in_id, user=request.user, checked_out=True)
+        check_in = get_object_or_404(CheckIn, id=check_in_id, user=request.user)
 
         # 체크인 아이디당 하나의 리뷰만 작성할 수 있도록 검증
         if Review.objects.filter(check_in=check_in).exists():

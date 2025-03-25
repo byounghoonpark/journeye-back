@@ -62,7 +62,7 @@ class SpaceManagerAssignSerializer(serializers.ModelSerializer):
 class UserProfileDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['profile_picture', 'nationality', 'language', 'email_verified', 'phone_verified']
+        fields = ['profile_picture', 'nationality', 'phone_number','language', 'email_verified', 'phone_verified']
 
 class UserDetailSerializer(serializers.ModelSerializer):
     profile = UserProfileDetailSerializer()
