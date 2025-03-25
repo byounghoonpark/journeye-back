@@ -525,3 +525,32 @@ class VerifyPasswordView(APIView):
             return Response({"message": "비밀번호가 올바릅니다."}, status=status.HTTP_200_OK)
         else:
             return Response({"message": "비밀번호가 올바르지 않습니다."}, status=status.HTTP_403_FORBIDDEN)
+
+
+class CheckEmailView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        operation_description="이메일 중복 및 가입 여부 확인 API",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "email": openapi.Schema(type=openapi.TYPE_STRING, description="확인할 이메일 주소")
+            },
+            required=["email"]
+        ),
+        responses={
+            200: openapi.Response(description="이메일 확인 결과"),
+            400: openapi.Response(description="잘못된 요청")
+        }
+    )
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"message": "이메일 주소를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_exists = User.objects.filter(email=email).exists()
+        if user_exists:
+            return Response({"message": "이미 가입된 이메일입니다."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"message": "가입되지 않은 이메일입니다."}, status=status.HTTP_200_OK)

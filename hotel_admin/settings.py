@@ -191,7 +191,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),  # 액세스 토큰 유효 시간
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),  # 액세스 토큰 유효 시간
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  # 리프레시 토큰 유효 시간
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,

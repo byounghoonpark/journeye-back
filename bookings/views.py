@@ -9,7 +9,7 @@ from hotel_admin import settings
 from .models import CheckIn, Reservation, HotelRoom, Review, ReviewPhoto
 from django.contrib.auth.models import User
 from spaces.models import BaseSpace, HotelRoomUsage, HotelRoomMemo, HotelRoomHistory
-from chat.models import ChatRoom
+from chat.models import ChatRoom, ChatRoomParticipant
 from accounts.models import UserProfile
 from accounts.permissions import IsAdminOrManager
 
@@ -72,8 +72,22 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
         if validated_data.get("reservation_id") and validated_data.get("user_id"):
             return self.check_in_reserved_customer(validated_data, room)
 
-        # 워크인 고객 체크인
-        return self.check_in_walkin_customer(validated_data, room)
+        else:
+            # 워크인 고객 체크인
+            response = self.check_in_walkin_customer(validated_data, room)
+
+            # 생성된 체크인 객체를 가져옵니다.
+            # 여기서는 응답에 포함된 temp_code를 체크인 식별자로 사용한다고 가정합니다.
+        try:
+            check_in_instance = CheckIn.objects.get(temp_code=response.data["temp_code"])
+        except Exception as e:
+            print(f"Error retrieving check-in instance: {e}")
+            return response
+
+            # 채팅방과 참가자 추가 함수 호출
+        self._create_chatroom_and_add_participants(check_in_instance, request.user)
+
+        return response
 
     @swagger_auto_schema(
         request_body=CheckOutRequestSerializer,
@@ -120,6 +134,21 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
             "chat_room_status": "비활성화됨" if chat_room else "채팅방 없음"
         }, status=status.HTTP_200_OK)
 
+    def _create_chatroom_and_add_participants(self, check_in_instance, admin_user):
+        """
+        체크인 객체를 기반으로 채팅방을 생성하고, 해당 채팅방에 관리자와 체크인한 고객을 참가자로 추가합니다.
+        """
+        # basespace는 객실의 room_type 필드에 연결된 BaseSpace 인스턴스로 가정합니다.
+        chat_room = ChatRoom.objects.create(
+            basespace=check_in_instance.reservation.space.basespace,
+            checkin=check_in_instance
+        )
+        # 관리자(요청 사용자)와 체크인한 고객을 ChatRoomParticipant에 추가합니다.
+        ChatRoomParticipant.objects.create(chatroom=chat_room, user=admin_user)
+        ChatRoomParticipant.objects.create(chatroom=chat_room, user=check_in_instance.user)
+        # 추가적으로 채팅방 생성 로그를 기록할 수 있습니다.
+        print(f"ChatRoom created with id: {chat_room.id} for check-in: {check_in_instance.id}")
+
     def get_hotel_and_room(self, hotel_id, room_id):
         """호텔 및 객실 정보 조회"""
         hotel = get_object_or_404(BaseSpace, id=hotel_id)
@@ -165,7 +194,7 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
 
         new_user = User.objects.create_user(
             username=validated_data["guest_name"],
-            password=generate_unique_temp_code(),
+            password=temp_code,
             email=validated_data["email"],
         )
 
