@@ -62,7 +62,7 @@ class Review(models.Model):
 
 class ReviewPhoto(models.Model):
     review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='photos')
-    image = models.ImageField(upload_to='photos/review_photos/')
+    image = models.ImageField(upload_to='review_photos/')
 
     def __str__(self):
         return f"Photo for Review {self.review.id}"
