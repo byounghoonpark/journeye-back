@@ -1,6 +1,11 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
+
+from spaces.models import BaseSpacePhoto
 from .models import Notification
+from django.utils.timezone import localtime, now
+from django.utils.translation import gettext_lazy as _
+from datetime import timedelta
 
 User = get_user_model()
 
@@ -11,14 +16,36 @@ class NotificationUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username']
 
 class NotificationSerializer(serializers.ModelSerializer):
-    sender = NotificationUserSerializer(read_only=True)
-    basespace_id = serializers.IntegerField(write_only=True, required=False)
+    sender = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+    hotel_photo = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
-        fields = '__all__'
+        fields = ['id', 'sender', 'title', 'content', 'notification_type', 'created_at', 'hotel_photo']
 
-    def create(self, validated_data):
-        # basespace_id는 모델에 포함되지 않으므로 제거합니다.
-        validated_data.pop('basespace_id', None)
-        return super().create(validated_data)
+    def get_sender(self, obj):
+        managed_spaces = obj.sender.managed_spaces.all()
+        if managed_spaces.exists():
+            return managed_spaces.first().name  # 첫 번째 관리하는 공간의 이름 반환
+        return None
+
+    def get_created_at(self, obj):
+        created_at = localtime(obj.created_at)
+        today = localtime(now()).date()
+
+        if created_at.date() == today:
+            return created_at.strftime("%I:%M %p")
+        elif created_at.date() == today - timedelta(days=1):
+            return _("Yesterday")
+        else:
+            return created_at.strftime("%m/%d/%Y")
+
+    def get_hotel_photo(self, obj):
+        managed_spaces = obj.sender.managed_spaces.all()
+        if managed_spaces.exists():
+            hotel = managed_spaces.first()
+            photo = BaseSpacePhoto.objects.filter(basespace=hotel).first()
+            if photo:
+                return photo.image.url
+        return None

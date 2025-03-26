@@ -159,7 +159,7 @@ class MultiplexConsumer(AsyncWebsocketConsumer):
                 {
                     "sender": self.user,
                     "title": "새 채팅 메시지",
-                    "content": content,
+                    "content": translated_content,
                     "notification_type": "MESSAGE",
                     "created_at": message.created_at.isoformat(),
                 }

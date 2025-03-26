@@ -92,7 +92,7 @@ class CheckOutRequestSerializer(serializers.Serializer):
 
     def validate(self, data):
         """현재 체크인 중인 고객이 있는지 확인"""
-        check_in = CheckIn.objects.filter(hotel_room__id=data["room_id"], check_out_date__gte=now().date()).first()
+        check_in = CheckIn.objects.filter(hotel_room__id=data["room_id"]).first()
         if not check_in:
             raise serializers.ValidationError("현재 체크인 중인 고객이 없습니다.")
         return data
