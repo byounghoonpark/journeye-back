@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 
 from accounts.models import UserProfile
 from bookings.models import Review, ReviewPhoto
+from concierge.models import AIConcierge
 from spaces.models import (
     Hotel,
     Facility,
@@ -161,14 +162,11 @@ class ReviewUserSerializer(serializers.ModelSerializer):
 
 class HotelReviewSerializer(serializers.ModelSerializer):
     user = ReviewUserSerializer(read_only=True)
-    photos = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
-        fields = ['id', 'user', 'check_in', 'content', 'rating', 'created_at', 'updated_at', 'photos']
+        fields = ['id', 'user', 'check_in', 'content', 'rating', 'created_at']
 
-    def get_photos(self, obj):
-        return [photo.image.url for photo in obj.photos.all()]
 
 
 class HotelDetailSerializer(serializers.ModelSerializer):
@@ -176,22 +174,26 @@ class HotelDetailSerializer(serializers.ModelSerializer):
     reviews = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     review_count = serializers.SerializerMethodField()
-    nearby_facilities = serializers.SerializerMethodField()
+    nearby_basespaces = serializers.SerializerMethodField()
     photos = serializers.SerializerMethodField()
     review_photos = serializers.SerializerMethodField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+    nearby_aiconcierges = serializers.SerializerMethodField()
 
     class Meta:
         model = Hotel
         fields = [
-            'id', 'photos', 'name', 'introduction', 'location', 'address', 'phone', 'star_rating',
-            'services', 'review_photos', 'reviews', 'average_rating', 'review_count', 'nearby_facilities'
+            'id', 'photos', 'name', 'introduction', 'latitude', 'longitude', 'address', 'phone', 'star_rating',
+            'services', 'average_rating', 'review_count', 'nearby_basespaces', 'nearby_aiconcierges', 'review_photos',
+            'reviews'
         ]
 
     def get_services(self, obj):
         services = Service.objects.filter(basespace=obj)
         return [{'name': service.name, 'description': service.description, 'price': service.price} for service in services]
 
-    def get_nearby_facilities(self, obj):
+    def get_nearby_basespaces(self, obj):
         nearby_facilities = Facility.objects.filter(location__distance_lte=(obj.location, 1000))
         return [{
             'name': facility.name,
@@ -222,6 +224,17 @@ class HotelDetailSerializer(serializers.ModelSerializer):
     def get_review_photos(self, obj):
         review_photos = ReviewPhoto.objects.filter(review__check_in__hotel_room__room_type__basespace=obj).order_by('-id')[:20]
         return [photo.image.url for photo in review_photos]
+
+    def get_latitude(self, obj):
+        return obj.location.y if obj.location else None
+
+    def get_longitude(self, obj):
+        return obj.location.x if obj.location else None
+
+    def get_nearby_aiconcierges(self, obj):
+        nearby_concierges = AIConcierge.objects.filter(location__distance_lte=(obj.location, 1000))
+        return [{'pk': concierge.pk, 'name': concierge.name} for concierge in nearby_concierges]
+
 
 class FacilitySerializer(serializers.ModelSerializer):
     photos = serializers.SerializerMethodField()
@@ -267,17 +280,21 @@ class FacilitySerializer(serializers.ModelSerializer):
 
 
 class FacilityDetailSerializer(serializers.ModelSerializer):
-    nearby_hotels = serializers.SerializerMethodField()
+    nearby_basespaces = serializers.SerializerMethodField()
+    photos = serializers.SerializerMethodField()
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+    nearby_aiconcierges = serializers.SerializerMethodField()
 
     class Meta:
         model = Facility
         fields = [
-            'id', 'name', 'introduction', 'location', 'address', 'phone', 'facility_type',
-            'opening_time', 'closing_time', 'additional_info', 'nearby_hotels'
+            'id', 'photos', 'name', 'introduction', 'latitude', 'longitude', 'address', 'phone', 'facility_type',
+            'opening_time', 'closing_time', 'additional_info', 'nearby_basespaces', 'nearby_aiconcierges'
         ]
 
-    def get_nearby_hotels(self, obj):
-        nearby_hotels = Hotel.objects.filter(location__distance_lte=(obj.location, 1000))
+    def get_nearby_basespaces(self, obj):
+        nearby_basespaces = Hotel.objects.filter(location__distance_lte=(obj.location, 1000))
         return [{
             'name': hotel.name,
             'address': hotel.address,
@@ -286,4 +303,17 @@ class FacilityDetailSerializer(serializers.ModelSerializer):
             'longitude': hotel.location.x if hotel.location else None,
             'photo': hotel.photos.first().image.url if hotel.photos.exists() else None,
             'basespace_id': hotel.basespace_ptr_id
-        } for hotel in nearby_hotels]
+        } for hotel in nearby_basespaces]
+
+    def get_photos(self, obj):
+        return [photo.image.url for photo in obj.photos.all()]
+
+    def get_latitude(self, obj):
+        return obj.location.y if obj.location else None
+
+    def get_longitude(self, obj):
+        return obj.location.x if obj.location else None
+
+    def get_nearby_aiconcierges(self, obj):
+        nearby_concierges = AIConcierge.objects.filter(location__distance_lte=(obj.location, 1000))
+        return [{'pk': concierge.pk, 'name': concierge.name} for concierge in nearby_concierges]

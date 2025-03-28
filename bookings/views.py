@@ -1,5 +1,6 @@
 import random
 import string
+import uuid
 from datetime import timedelta
 
 from rest_framework.views import APIView
@@ -17,6 +18,8 @@ from django.db import transaction
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
 from django.utils.timezone import now
+from django.db.models import Avg
+from django.db.models import Count
 
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -124,6 +127,13 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
         # 객실 상태 변경 및 로그 기록
         self.update_room_status(check_in.hotel_room, "체크 아웃")
 
+        # 유저 프로필의 역할이 'TEMP'인 경우 이메일을 난수로 변경
+        user_profile = check_in.user.profile
+        if user_profile.role == 'TEMP':
+            random_email = str(uuid.uuid4()) + '@example.com'
+            check_in.user.email = random_email
+            check_in.user.save()
+
         chat_room = ChatRoom.objects.filter(checkin=check_in).first()
         if chat_room:
             chat_room.is_active = False
@@ -203,7 +213,8 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
             phone_number=validated_data["phone"],
             nationality=validated_data["nationality"],
             language=validated_data["language"],
-            email_code=temp_code
+            email_code=temp_code,
+            role='TEMP'
         )
 
         reservation = Reservation.objects.create(
@@ -368,7 +379,23 @@ class ReviewViewSet(viewsets.ModelViewSet):
         }
     )
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        response = Response(serializer.data)
+
+        # 평균 별점과 리뷰 개수 계산
+
+        avg_rating = queryset.aggregate(Avg('rating'))['rating__avg']
+
+        review_count = queryset.aggregate(Count('id'))['id__count']
+
+        # 응답 데이터에 추가
+        response.data.append({
+            'average_rating': avg_rating,
+            'review_count': review_count
+        })
+
+        return response
 
 
     @swagger_auto_schema(

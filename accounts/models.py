@@ -11,6 +11,7 @@ class UserRole(ChoiceEnum):
     GENERAL = "일반 사용자"
     ADMIN = "수퍼 관리자"
     MANAGER = "관리자"
+    TEMP = "임시 사용자"
 
 
 class UserProfile(models.Model):

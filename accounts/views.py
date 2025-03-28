@@ -12,14 +12,17 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.generics import get_object_or_404, RetrieveAPIView
 from rest_framework.parsers import MultiPartParser, FormParser
-
 from accounts.models import UserProfile
 from bookings.models import CheckIn
 from chat.models import ChatRoom
 from spaces.models import  BaseSpace
-from .serializers import UserRegistrationSerializer, SpaceManagerAssignSerializer, UserDetailSerializer, \
-    EmailTokenObtainPairSerializer, UserProfileUpdateSerializer
-
+from .serializers import (
+    UserRegistrationSerializer,
+    SpaceManagerAssignSerializer,
+    UserDetailSerializer,
+    EmailTokenObtainPairSerializer,
+    UserProfileUpdateSerializer
+)
 import random, string
 from hotel_admin import settings
 
