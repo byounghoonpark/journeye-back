@@ -10,10 +10,12 @@ async def send_notification_to_users(user_ids, message):
             {
                 "type": "send_notification",
                 "message": {
+                    "id": message.get("id"),
                     "title": message.get("title"),
                     "content": message.get("content"),
                     "notification_type": message.get("notification_type"),
-                    "created_at": message.get("created_at")
+                    "created_at": message.get("created_at"),
+                    "chat_room": message.get("chat_room")
                 }
             }
         )
@@ -23,7 +25,8 @@ async def send_notification_to_users(user_ids, message):
         sender=message.get("sender"),
         title=message.get("title"),
         content=message.get("content"),
-        notification_type=message.get("notification_type")
+        notification_type=message.get("notification_type"),
+        chat_room = message.get("chat_room")
     )
     await sync_to_async(NotificationReadStatus.objects.bulk_create)([
         NotificationReadStatus(notification=notification, recipient_id=user_id)

@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from spaces.models import BaseSpacePhoto
-from .models import Notification
+from .models import Notification, NotificationType, NotificationReadStatus
 from django.utils.timezone import localtime, now
 from django.utils.translation import gettext_lazy as _
 from datetime import timedelta
@@ -19,10 +19,12 @@ class NotificationSerializer(serializers.ModelSerializer):
     sender = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
     hotel_photo = serializers.SerializerMethodField()
+    is_read = serializers.SerializerMethodField()
+    unread_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
-        fields = ['id', 'sender', 'title', 'content', 'notification_type', 'created_at', 'hotel_photo']
+        fields = ['id', 'sender', 'title', 'content', 'notification_type', 'created_at', 'hotel_photo', 'is_read', 'unread_count', 'chat_room']
 
     def get_sender(self, obj):
         managed_spaces = obj.sender.managed_spaces.all()
@@ -49,3 +51,17 @@ class NotificationSerializer(serializers.ModelSerializer):
             if photo:
                 return photo.image.url
         return None
+
+    def get_is_read(self, obj):
+        read_status = obj.read_statuses.filter(recipient=self.context['request'].user).first()
+        return 0 if read_status and read_status.read_at else 1
+
+    def get_unread_count(self, obj):
+        if obj.notification_type == NotificationType.MESSAGE.name:
+            return NotificationReadStatus.objects.filter(
+                notification__notification_type=NotificationType.MESSAGE.name,
+                notification__sender=obj.sender,
+                recipient=self.context['request'].user,
+                read_at__isnull=True
+            ).count()
+        return 0

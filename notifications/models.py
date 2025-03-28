@@ -3,6 +3,9 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+from chat.models import ChatRoom
+
+
 class ChoiceEnum(Enum):
     @classmethod
     def choices(cls):
@@ -26,6 +29,9 @@ class Notification(models.Model):
         max_length=50,
         choices=NotificationType.choices(),
         default=NotificationType.MESSAGE
+    )
+    chat_room = models.ForeignKey(
+        ChatRoom, on_delete=models.CASCADE, null=True, blank=True, related_name="notifications"
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -109,6 +109,11 @@ class MultiplexConsumer(AsyncWebsocketConsumer):
                     target_lang = "KO"
                     translated_content = await sync_to_async(translate_text)(content, target_lang)
 
+            if sender_role in ["ADMIN", "MANAGER"]:
+                sender_name = await sync_to_async(lambda: self.chat_room.basespace.name)()
+            else:
+                sender_name = self.user.username
+
             message = await sync_to_async(Message.objects.create)(
                 room=self.chat_room,
                 sender=self.user,
@@ -124,7 +129,7 @@ class MultiplexConsumer(AsyncWebsocketConsumer):
 
             payload = {
                 "type": "multiplex_message",  # 아래 multiplex_message 메서드가 처리합니다.
-                "sender": self.user.username,
+                "sender": sender_name,
                 "content": content,
                 "translated_content": translated_content,
                 "file_url": file_url,
@@ -162,6 +167,7 @@ class MultiplexConsumer(AsyncWebsocketConsumer):
                     "content": translated_content,
                     "notification_type": "MESSAGE",
                     "created_at": message.created_at.isoformat(),
+                    "chat_room": self.chat_room
                 }
             )
 

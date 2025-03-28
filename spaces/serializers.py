@@ -1,3 +1,4 @@
+from geopy.distance import geodesic
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
@@ -195,15 +196,22 @@ class HotelDetailSerializer(serializers.ModelSerializer):
 
     def get_nearby_basespaces(self, obj):
         nearby_facilities = Facility.objects.filter(location__distance_lte=(obj.location, 1000))
-        return [{
-            'name': facility.name,
-            'address': facility.address,
-            'phone': facility.phone,
-            'latitude': facility.location.y if facility.location else None,
-            'longitude': facility.location.x if facility.location else None,
-            'photo': facility.photos.first().image.url if facility.photos.exists() else None,
-            'basespace_id': facility.basespace_ptr_id
-        } for facility in nearby_facilities]
+        hotel_location = (obj.location.y, obj.location.x)
+        result = []
+        for facility in nearby_facilities:
+            facility_location = (facility.location.y, facility.location.x)
+            distance = round(geodesic(hotel_location, facility_location).meters)
+            result.append({
+                'name': facility.name,
+                'address': facility.address,
+                'phone': facility.phone,
+                'latitude': facility.location.y if facility.location else None,
+                'longitude': facility.location.x if facility.location else None,
+                'photo': facility.photos.first().image.url if facility.photos.exists() else None,
+                'basespace_id': facility.basespace_ptr_id,
+                'distance': distance
+            })
+        return result
 
     def get_reviews(self, obj):
         reviews = Review.objects.filter(check_in__hotel_room__room_type__basespace=obj)

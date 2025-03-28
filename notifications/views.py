@@ -1,9 +1,10 @@
 from django.contrib.auth import get_user_model
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from rest_framework import viewsets, status
-from rest_framework.response import Response
+from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+
+from chat.models import ChatRoom
 from .models import Notification, NotificationType, NotificationReadStatus
 from bookings.models import CheckIn
 from .serializers import NotificationSerializer
@@ -19,15 +20,27 @@ class NotificationViewSet(viewsets.ModelViewSet):
         """현재 로그인한 사용자의 알림만 조회"""
         if getattr(self, 'swagger_fake_view', False):
             return Notification.objects.none()
-        return Notification.objects.filter(read_statuses__recipient=self.request.user).order_by('-created_at')
+
+        # MESSAGE 타입 알림을 sender별로 묶어서 하나만 반환
+        message_notifications = Notification.objects.filter(
+            read_statuses__recipient=self.request.user,
+            notification_type=NotificationType.MESSAGE.name
+        ).order_by('sender', '-created_at').distinct('sender')
+
+        other_notifications = Notification.objects.filter(
+            read_statuses__recipient=self.request.user
+        ).exclude(notification_type=NotificationType.MESSAGE.name).order_by('-created_at')
+
+        return list(message_notifications) + list(other_notifications)
 
     def perform_create(self, serializer):
         """알림을 생성하고 WebSocket으로 전송"""
-        notification = serializer.save(sender=self.request.user)  # 공지 내용은 한 번만 저장됨
+        chat_room_id = self.request.data.get('chat_room_id')
+        chat_room = ChatRoom.objects.get(id=chat_room_id) if chat_room_id else None
+        notification = serializer.save(sender=self.request.user, chat_room=chat_room)  # 공지 내용은 한 번만 저장됨
 
         if notification.notification_type == NotificationType.EVENT.name:
-            User.objects.filter(userprofile__role='general')
-
+            recipients = User.objects.filter(userprofile__role='general')
 
         elif notification.notification_type == NotificationType.ANNOUNCEMENT.name:
             basespace_id = self.request.data.get('basespace_id')
@@ -60,6 +73,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
             "content": notification.content,
             "notification_type": notification.notification_type,
             "created_at": notification.created_at.isoformat(),
+            "chat_room": chat_room_id
         })
 
 async def send_notification_to_users(user_ids, message):
