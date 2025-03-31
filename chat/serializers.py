@@ -120,15 +120,17 @@ class ManagerChatRoomSerializer(serializers.ModelSerializer):
             date = message.created_at.date()
             if date not in grouped_messages:
                 grouped_messages[date] = []
-            grouped_messages[date].append(self.format_message(message))
+            grouped_messages[date].append(self.format_message(message, obj))
         return [{'date': date, 'messages': msgs} for date, msgs in grouped_messages.items()]
 
-    def format_message(self, message):
+    def format_message(self, message, chat_room):
         korea_tz = pytz.timezone('Asia/Seoul')
         local_time = message.created_at.astimezone(korea_tz)
         formatted_time = local_time.strftime('%I:%M %p')
         message_data = MessageSerializer(message).data
         message_data['created_at'] = formatted_time
+        if message.sender.profile.role in ['ADMIN', 'MANAGER']:
+            message_data['sender'] = chat_room.checkin.hotel_room.room_type.basespace.name
         return message_data
 
 

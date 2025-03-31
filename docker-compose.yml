@@ -14,11 +14,13 @@ services:
       - redis
       - db
       - minio
+    restart: always
 
   redis:
     image: redis:6-alpine
     ports:
       - "6379:6379"
+    restart: always
 
   db:
     image: postgis/postgis:13-master
@@ -30,6 +32,7 @@ services:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    restart: always
 
   minio:
     image: minio/minio:latest
@@ -42,6 +45,7 @@ services:
     ports:
       - "9000:9000"  # S3 API 접근용
       - "9001:9001"  # 관리 콘솔 접근용
+    restart: always
 
 volumes:
   db_data:

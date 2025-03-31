@@ -1,7 +1,8 @@
 from geopy.distance import geodesic
 from rest_framework import serializers
 from django.contrib.auth.models import User
-
+from django.utils.timezone import localtime, now
+from django.utils.translation import gettext_lazy as _
 from accounts.models import UserProfile
 from bookings.models import Review, ReviewPhoto
 from concierge.models import AIConcierge
@@ -163,11 +164,25 @@ class ReviewUserSerializer(serializers.ModelSerializer):
 
 class HotelReviewSerializer(serializers.ModelSerializer):
     user = ReviewUserSerializer(read_only=True)
+    created_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
         fields = ['id', 'user', 'check_in', 'content', 'rating', 'created_at']
 
+    def get_created_at(self, obj):
+        created_at = localtime(obj.created_at)
+        today = localtime(now()).date()
+        delta = today - created_at.date()
+
+        if delta.days == 0:
+            return created_at.strftime("%I:%M %p")
+        elif delta.days == 1:
+            return _("Yesterday")
+        elif 2 <= delta.days <= 5:
+            return _("%d days ago") % delta.days
+        else:
+            return created_at.strftime("%m/%d/%Y")
 
 
 class HotelDetailSerializer(serializers.ModelSerializer):
