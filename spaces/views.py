@@ -18,7 +18,7 @@ from .models import (
     Floor,
     HotelRoomHistory,
     HotelRoomMemo,
-    Facility, BaseSpace
+    Facility, BaseSpace, BaseSpacePhoto
 )
 
 from .serializers import (
@@ -39,7 +39,7 @@ class HotelViewSet(ModelViewSet):
     parser_classes = [MultiPartParser, FormParser]
 
     def get_permissions(self):
-        if self.action in ["list", "retrieve", "get_detail"]:
+        if self.action in ["list", "retrieve", "get_detail", "nearby_hotels"]:
             return [AllowAny()]
         return [IsAuthenticated(), IsAdminOrManager()]
 
@@ -70,6 +70,43 @@ class HotelViewSet(ModelViewSet):
     def perform_create(self, serializer):
         hotel = serializer.save()
         hotel.managers.add(self.request.user)  # 자동으로 매니저 등록
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('latitude', openapi.IN_QUERY, type=openapi.TYPE_NUMBER, description='위도', required=True),
+            openapi.Parameter('longitude', openapi.IN_QUERY, type=openapi.TYPE_NUMBER, description='경도', required=True),
+        ]
+    )
+    @action(detail=False, methods=['get'], url_path='nearby-hotels')
+    def nearby_hotels(self, request):
+        latitude = request.query_params.get('latitude')
+        longitude = request.query_params.get('longitude')
+
+        if not latitude or not longitude:
+            return Response({"error": "위도와 경도를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user_location = (float(latitude), float(longitude))
+        except ValueError:
+            return Response({"error": "위도와 경도는 숫자여야 합니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        nearby_hotels = Hotel.objects.all()
+        result = []
+
+        for hotel in nearby_hotels:
+            hotel_location = (hotel.location.y, hotel.location.x)
+            distance = geodesic(user_location, hotel_location).meters
+
+            if distance <= 5000:  # 5km 이내의 호텔만 포함
+                first_photo = hotel.photos.first()
+                result.append({
+                    "name": hotel.name,
+                    "first_photo": first_photo.image.url if first_photo else None,
+                    "distance": round(distance),
+                    "basespace_id": hotel.pk
+                })
+
+        return Response(result, status=status.HTTP_200_OK)
 
 
 
@@ -291,7 +328,7 @@ class FacilityViewSet(ModelViewSet):
     parser_classes = [MultiPartParser, FormParser]
 
     def get_permissions(self):
-        if self.action in ["list", "retrieve", "get_detail"]:
+        if self.action in ["list", "retrieve", "get_detail", "nearby_facilities"]:
             return [AllowAny()]
         return [IsAuthenticated(), IsAdminOrManager()]
 
@@ -319,6 +356,43 @@ class FacilityViewSet(ModelViewSet):
         facility = self.get_object()
         serializer = FacilityDetailSerializer(facility)
         return Response(serializer.data)
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('basespace_id', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description='BaseSpace ID',
+                              required=True),
+        ]
+    )
+    @action(detail=False, methods=['get'], url_path='nearby-facilities')
+    def nearby_facilities(self, request):
+        basespace_id = request.query_params.get('basespace_id')
+
+        if not basespace_id:
+            return Response({"error": "BaseSpace ID를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            basespace = BaseSpace.objects.get(pk=basespace_id)
+        except BaseSpace.DoesNotExist:
+            return Response({"error": "해당 BaseSpace를 찾을 수 없습니다."}, status=status.HTTP_404_NOT_FOUND)
+
+        user_location = (basespace.location.y, basespace.location.x)
+        nearby_facilities = Facility.objects.all()
+        result = []
+
+        for facility in nearby_facilities:
+            facility_location = (facility.location.y, facility.location.x)
+            distance = geodesic(user_location, facility_location).meters
+
+            if distance <= 5000:  # 5km 이내의 시설만 포함
+                first_photo = BaseSpacePhoto.objects.filter(basespace=facility).first()
+                result.append({
+                    "id": facility.pk,
+                    "name": facility.name,
+                    "distance": round(distance),
+                    "first_photo": first_photo.image.url if first_photo else None
+                })
+
+        return Response(result, status=status.HTTP_200_OK)
 
 
 class FeaturedBaseSpaceListView(APIView):

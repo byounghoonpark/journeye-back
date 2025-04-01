@@ -46,6 +46,7 @@ class HotelSerializer(serializers.ModelSerializer):
         latitude = validated_data.pop("latitude")
         longitude = validated_data.pop("longitude")
         validated_data["location"] = Point(longitude, latitude)
+        validated_data.setdefault("star_rating", 1)
         hotel = Hotel.objects.create(**validated_data)
 
         for photo in photos:
