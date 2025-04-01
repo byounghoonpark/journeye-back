@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 
 from chat.models import ChatRoom
 from spaces.models import HotelRoomMemo, HotelRoomHistory
-from .models import CheckIn, Reservation, Review, ReviewPhoto
+from .models import CheckIn, Reservation, Review, ReviewPhoto, Like
 from accounts.models import UserProfile
 from django.utils.timezone import now
 
@@ -228,3 +228,9 @@ class CheckInReservationSerializer(serializers.ModelSerializer):
 
     def get_end_date(self, obj):
         return obj.reservation.end_date.strftime('%m/%d/%Y')
+
+
+class LikeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Like
+        fields = ['id', 'user', 'basespace', 'created_at']

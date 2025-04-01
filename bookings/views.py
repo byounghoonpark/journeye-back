@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from hotel_admin import settings
 
-from .models import CheckIn, Reservation, HotelRoom, Review, ReviewPhoto
+from .models import CheckIn, Reservation, HotelRoom, Review, ReviewPhoto, Like
 from django.contrib.auth.models import User
 from spaces.models import BaseSpace, HotelRoomUsage, HotelRoomMemo, HotelRoomHistory
 from chat.models import ChatRoom, ChatRoomParticipant
@@ -32,7 +32,7 @@ from rest_framework.decorators import action
 
 from .serializers import CheckInRequestSerializer, CheckInSerializer, CheckOutRequestSerializer, ReviewSerializer, \
     CheckInUpdateSerializer, CheckInCustomerUpdateSerializer, ReservationSerializer, UserReservationSerializer, \
-    CheckInReservationSerializer
+    CheckInReservationSerializer, LikeSerializer
 
 
 def generate_unique_temp_code():
@@ -700,3 +700,65 @@ class CheckInStatusView(APIView):
             "review_written": review_exists
         }
         return Response(data, status=status.HTTP_200_OK)
+
+
+class LikeViewSet(viewsets.ModelViewSet):
+    queryset = Like.objects.all()
+    serializer_class = LikeSerializer
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'basespace_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='BaseSpace ID')
+            },
+            required=['basespace_id']
+        ),
+        responses={
+            200: openapi.Response(description="좋아요가 취소되었습니다."),
+            201: openapi.Response(description="좋아요가 추가되었습니다."),
+            400: openapi.Response(description="잘못된 요청")
+        }
+    )
+    @action(detail=False, methods=['post'], url_path='toggle-like')
+    def toggle_like(self, request):
+        user = request.user
+        basespace_id = request.data.get('basespace_id')
+
+        if not basespace_id:
+            return Response({"error": "BaseSpace ID를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        like, created = Like.objects.get_or_create(user=user, basespace_id=basespace_id)
+
+        if not created:
+            like.delete()
+            return Response({"detail": "좋아요가 취소되었습니다."}, status=status.HTTP_200_OK)
+
+        return Response({"detail": "좋아요가 추가되었습니다."}, status=status.HTTP_201_CREATED)
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('basespace_id', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description='BaseSpace ID', required=True),
+        ],
+        responses={
+            200: openapi.Response(description="좋아요 상태 조회 성공", schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'liked': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='좋아요 상태')
+                }
+            )),
+            400: openapi.Response(description="잘못된 요청")
+        }
+    )
+    @action(detail=False, methods=['get'], url_path='is-liked')
+    def is_liked(self, request):
+        user = request.user
+        basespace_id = request.query_params.get('basespace_id')
+
+        if not basespace_id:
+            return Response({"error": "BaseSpace ID를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
+
+        liked = Like.objects.filter(user=user, basespace_id=basespace_id).exists()
+
+        return Response({"liked": liked}, status=status.HTTP_200_OK)

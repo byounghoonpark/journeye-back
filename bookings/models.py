@@ -70,11 +70,11 @@ class ReviewPhoto(models.Model):
 # Like: 특정 Space에 대한 좋아요 정보를 저장
 class Like(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='likes')
-    base_space = models.ForeignKey(BaseSpace, on_delete=models.CASCADE, related_name='likes')
+    basespace = models.ForeignKey(BaseSpace, on_delete=models.CASCADE, related_name='likes')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'base_space')
+        unique_together = ('user', 'basespace')
 
     def __str__(self):
-        return f"{self.user.username} likes {self.base_space.name}"
+        return f"{self.user.username} likes {self.basespace.name}"
