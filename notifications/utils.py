@@ -15,7 +15,7 @@ async def send_notification_to_users(user_ids, message):
                     "content": message.get("content"),
                     "notification_type": message.get("notification_type"),
                     "created_at": message.get("created_at"),
-                    "chat_room": message.get("chat_room")
+                    "chat_room": message.get("chat_room").id
                 }
             }
         )

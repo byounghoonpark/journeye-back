@@ -42,10 +42,17 @@ class AIConciergeViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(concierge)
         response_data = serializer.data
 
+        # type_name으로 변경하고 맨 위로 이동
+        response_data = {'type_name': response_data.pop('name'), **response_data}
+
+        for assignment in response_data['assignments']:
+            assignment['content_name'] = assignment.pop('name')
+
         # 가격 정보와 Full Charge 계산
         assignments = ConciergeAssignment.objects.filter(concierge=concierge)
         spaces = Space.objects.filter(basespace__concierge_assignments__in=assignments)
         space_prices = SpaceSerializer(spaces, many=True).data
+
 
         full_charge = spaces.aggregate(Sum('price'))['price__sum']
 

@@ -1,15 +1,23 @@
 from django.contrib.auth import get_user_model
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from rest_framework import viewsets
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import viewsets, status, serializers
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-
+from rest_framework.response import Response
 from chat.models import ChatRoom
 from .models import Notification, NotificationType, NotificationReadStatus
 from bookings.models import CheckIn
 from .serializers import NotificationSerializer
+from django.utils import timezone
+from rest_framework.generics import get_object_or_404
 
 User = get_user_model()
+
+
+class EmptySerializer(serializers.Serializer):
+    pass
 
 class NotificationViewSet(viewsets.ModelViewSet):
     queryset = Notification.objects.all()
@@ -17,21 +25,48 @@ class NotificationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """현재 로그인한 사용자의 알림만 조회"""
+        """현재 로그인한 사용자의 읽지 않은 알림만 조회"""
         if getattr(self, 'swagger_fake_view', False):
             return Notification.objects.none()
 
         # MESSAGE 타입 알림을 sender별로 묶어서 하나만 반환
         message_notifications = Notification.objects.filter(
             read_statuses__recipient=self.request.user,
+            read_statuses__read_at__isnull=True,
             notification_type=NotificationType.MESSAGE.name
         ).order_by('sender', '-created_at').distinct('sender')
 
         other_notifications = Notification.objects.filter(
-            read_statuses__recipient=self.request.user
+            read_statuses__recipient=self.request.user,
+            read_statuses__read_at__isnull=True
         ).exclude(notification_type=NotificationType.MESSAGE.name).order_by('-created_at')
 
         return list(message_notifications) + list(other_notifications)
+
+
+    @action(detail=True, methods=['post'], url_path='mark-notifications-read')
+    def mark_notifications_read(self, request, pk=None):
+        """특정 발신자의 모든 메시지 알림을 읽음 처리"""
+        notification = get_object_or_404(Notification, pk=pk)
+
+        if notification.notification_type == NotificationType.MESSAGE.name:
+            # 메시지 알림일 경우 발신자의 모든 메시지 알림을 읽음 처리
+            NotificationReadStatus.objects.filter(
+                notification__sender=notification.sender,
+                notification__chat_room=notification.chat_room,
+                notification__notification_type=NotificationType.MESSAGE.name,
+                recipient=request.user,
+                read_at__isnull=True
+            ).update(read_at=timezone.now())
+        else:
+            # 메시지가 아닌 경우 해당 알림만 읽음 처리
+            NotificationReadStatus.objects.filter(
+                notification=notification,
+                recipient=request.user,
+                read_at__isnull=True
+            ).update(read_at=timezone.now())
+
+        return Response({"status": "Notification marked as read"}, status=status.HTTP_200_OK)
 
     def perform_create(self, serializer):
         """알림을 생성하고 WebSocket으로 전송"""
