@@ -260,7 +260,7 @@ class HotelDetailSerializer(serializers.ModelSerializer):
         return obj.location.x if obj.location else None
 
     def get_nearby_aiconcierges(self, obj):
-        nearby_concierges = AIConcierge.objects.filter(location__distance_lte=(obj.location, 1000))
+        nearby_concierges = AIConcierge.objects.filter(location__distance_lte=(obj.location, 5000))
         return [{'pk': concierge.pk, 'name': concierge.name} for concierge in nearby_concierges]
 
 

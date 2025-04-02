@@ -10,6 +10,7 @@ from geopy.distance import geodesic
 
 from accounts.permissions import IsAdminOrManager
 from bookings.serializers import HotelRoomMemoSerializer, HotelRoomHistorySerializer
+from concierge.models import AIConcierge
 from .models import (
     HotelRoom,
     HotelRoomType,
@@ -386,7 +387,7 @@ class FacilityViewSet(ModelViewSet):
             if distance <= 5000:  # 5km 이내의 시설만 포함
                 first_photo = BaseSpacePhoto.objects.filter(basespace=facility).first()
                 result.append({
-                    "id": facility.pk,
+                    "basespace_id": facility.pk,
                     "name": facility.name,
                     "distance": round(distance),
                     "first_photo": first_photo.image.url if first_photo else None
@@ -426,6 +427,8 @@ class FeaturedBaseSpaceListView(APIView):
             distance = geodesic(user_location, space_location).meters
             distance_km = round(distance / 1000, 1)
             first_photo = space.photos.first()
+            nearby_concierges = AIConcierge.objects.filter(location__distance_lte=(space.location, 1000))
+            nearby_concierges_data = [{'pk': concierge.pk, 'name': concierge.name} for concierge in nearby_concierges]
             result.append({
                 "id": space.id,
                 "name": space.name,
@@ -436,6 +439,7 @@ class FeaturedBaseSpaceListView(APIView):
                 "introduction": space.introduction,
                 "is_hotel": hasattr(space, 'hotel'),
                 "first_photo": first_photo.image.url if first_photo else None,
+                "nearby_concierges": nearby_concierges_data
             })
 
         return Response(result, status=status.HTTP_200_OK)
