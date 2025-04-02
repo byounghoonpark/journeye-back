@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.utils.timezone import localtime, now
 from django.utils.translation import gettext_lazy as _
 from accounts.models import UserProfile
-from bookings.models import Review, ReviewPhoto
+from bookings.models import Review, ReviewPhoto, Like
 from concierge.models import AIConcierge
 from spaces.models import (
     Hotel,
@@ -197,14 +197,18 @@ class HotelDetailSerializer(serializers.ModelSerializer):
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
     nearby_aiconcierges = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Hotel
         fields = [
             'id', 'photos', 'name', 'introduction', 'latitude', 'longitude', 'address', 'phone', 'star_rating',
             'services', 'average_rating', 'review_count', 'nearby_basespaces', 'nearby_aiconcierges', 'review_photos',
-            'reviews'
+            'reviews', 'like_count'
         ]
+
+    def get_like_count(self, obj):
+        return Like.objects.filter(basespace=obj).count()
 
     def get_services(self, obj):
         services = Service.objects.filter(basespace=obj)
@@ -309,13 +313,18 @@ class FacilityDetailSerializer(serializers.ModelSerializer):
     latitude = serializers.SerializerMethodField()
     longitude = serializers.SerializerMethodField()
     nearby_aiconcierges = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Facility
         fields = [
             'id', 'photos', 'name', 'introduction', 'latitude', 'longitude', 'address', 'phone', 'facility_type',
-            'opening_time', 'closing_time', 'additional_info', 'nearby_basespaces', 'nearby_aiconcierges'
+            'opening_time', 'closing_time', 'additional_info', 'nearby_basespaces', 'nearby_aiconcierges', 'like_count'
         ]
+
+
+    def get_like_count(self, obj):
+        return Like.objects.filter(basespace=obj).count()
 
     def get_nearby_basespaces(self, obj):
         nearby_basespaces = Hotel.objects.filter(location__distance_lte=(obj.location, 1000))
