@@ -85,14 +85,16 @@ class DetailedAIConciergeSerializer(serializers.ModelSerializer):
     def get_assignments(self, obj):
         assignments = ConciergeAssignment.objects.filter(concierge=obj).order_by('usage_time')
         result = []
-        for assignment in assignments:
+        for index, assignment in enumerate(assignments):
             basespace = assignment.basespace
+            basespace_photo = BaseSpacePhoto.objects.filter(basespace=basespace).first()
             result.append({
                 'content_name': assignment.name,
                 'usage_time': assignment.usage_time.strftime('%I:%M %p'),
                 'instructions': assignment.instructions,
-                'phone': basespace.phone,
-                'basespace': basespace.pk
+                'phone': basespace.phone if index % 2 == 0 else '',
+                'basespace': basespace.pk,
+                'basespace_photos': basespace_photo.image.url if basespace_photo and index % 2 == 0 else ''
             })
         return result
 
