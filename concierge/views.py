@@ -9,7 +9,7 @@ from rest_framework.generics import get_object_or_404
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from accounts.permissions import IsAdminOrManager
-from spaces.models import Space
+from spaces.models import Space, BaseSpace
 from .models import AIConcierge, ConciergeAssignment
 from .serializers import (
     AIConciergeCreateSerializer,
@@ -49,6 +49,8 @@ class AIConciergeViewSet(viewsets.ModelViewSet):
 
         for assignment in response_data['assignments']:
             assignment['content_name'] = assignment.pop('name')
+            basespace = BaseSpace.objects.get(pk=assignment['basespace'])
+            assignment['phone'] = basespace.phone
 
         # 가격 정보와 Full Charge 계산
         assignments = ConciergeAssignment.objects.filter(concierge=concierge)
