@@ -14,7 +14,7 @@ from .models import AIConcierge, ConciergeAssignment
 from .serializers import (
     AIConciergeCreateSerializer,
     AIConciergeSerializer,
-    ConciergeAssignmentCreateSerializer, SpaceSerializer
+    ConciergeAssignmentCreateSerializer, SpaceSerializer, DetailedAIConciergeSerializer
 )
 
 
@@ -41,29 +41,8 @@ class AIConciergeViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='detail/(?P<pk>[^/.]+)')
     def detail_by_pk(self, request, pk=None):
         concierge = get_object_or_404(AIConcierge, pk=pk)
-        serializer = self.get_serializer(concierge)
-        response_data = serializer.data
-
-        # type_name으로 변경하고 맨 위로 이동
-        response_data = {'type_name': response_data.pop('name'), **response_data}
-
-        for assignment in response_data['assignments']:
-            assignment['content_name'] = assignment.pop('name')
-            basespace = BaseSpace.objects.get(pk=assignment['basespace'])
-            assignment['phone'] = basespace.phone
-
-        # 가격 정보와 Full Charge 계산
-        assignments = ConciergeAssignment.objects.filter(concierge=concierge)
-        spaces = Space.objects.filter(basespace__concierge_assignments__in=assignments)
-        space_prices = SpaceSerializer(spaces, many=True).data
-
-
-        full_charge = spaces.aggregate(Sum('price'))['price__sum']
-
-        response_data['space_prices'] = space_prices
-        response_data['full_charge'] = full_charge
-
-        return Response(response_data)
+        serializer = DetailedAIConciergeSerializer(concierge)
+        return Response(serializer.data)
 
     @swagger_auto_schema(
         operation_description="위도와 경도를 기준으로 근처 AI 컨시어지들을 가까운 순서대로 최대 6개까지 반환합니다.",

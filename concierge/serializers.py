@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import AIConcierge, ConciergeAssignment
 from spaces.models import BaseSpacePhoto, Space
 from django.contrib.gis.geos import Point
-
+from django.db.models import Sum
 
 class BaseSpacePhotoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -67,4 +67,47 @@ class AIConciergeCreateSerializer(serializers.ModelSerializer):
 class ConciergeAssignmentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConciergeAssignment
-        fields = ['concierge', 'basespace', 'usage_time', 'instructions']
+        fields = ['concierge', 'basespace', 'usage_time', 'instructions', 'name']
+
+
+class DetailedAIConciergeSerializer(serializers.ModelSerializer):
+    assignments = serializers.SerializerMethodField()
+    space_prices = serializers.SerializerMethodField()
+    full_charge = serializers.SerializerMethodField()
+    type_name = serializers.CharField(source='name')
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AIConcierge
+        fields = ['type_name', 'description', 'latitude', 'longitude', 'assignments', 'space_prices', 'full_charge']
+
+    def get_assignments(self, obj):
+        assignments = ConciergeAssignment.objects.filter(concierge=obj).order_by('usage_time')
+        result = []
+        for assignment in assignments:
+            basespace = assignment.basespace
+            result.append({
+                'content_name': assignment.name,
+                'usage_time': assignment.usage_time.strftime('%I:%M %p'),
+                'instructions': assignment.instructions,
+                'phone': basespace.phone,
+                'basespace': basespace.pk
+            })
+        return result
+
+    def get_space_prices(self, obj):
+        assignments = ConciergeAssignment.objects.filter(concierge=obj)
+        spaces = Space.objects.filter(basespace__concierge_assignments__in=assignments)
+        return SpaceSerializer(spaces, many=True).data
+
+    def get_full_charge(self, obj):
+        assignments = ConciergeAssignment.objects.filter(concierge=obj)
+        spaces = Space.objects.filter(basespace__concierge_assignments__in=assignments)
+        return spaces.aggregate(Sum('price'))['price__sum']
+
+    def get_latitude(self, obj):
+        return obj.location.y
+
+    def get_longitude(self, obj):
+        return obj.location.x
