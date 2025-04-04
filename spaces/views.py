@@ -66,11 +66,17 @@ class HotelViewSet(ModelViewSet):
         if request.user.profile.role not in ["MANAGER", "ADMIN"]:
             return Response({"error": "매니저만 등록할 수 있습니다."}, status=status.HTTP_403_FORBIDDEN)
 
-        return super().create(request, *args, **kwargs)
-
-    def perform_create(self, serializer):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         hotel = serializer.save()
-        hotel.managers.add(self.request.user)  # 자동으로 매니저 등록
+        hotel.managers.add(request.user)  # 자동으로 매니저 등록
+
+        photos = request.FILES.getlist('photos')
+        for photo in photos:
+            BaseSpacePhoto.objects.create(basespace=hotel, image=photo)
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @swagger_auto_schema(
         manual_parameters=[
