@@ -384,10 +384,14 @@ class ReviewViewSet(viewsets.ModelViewSet):
         response = Response(serializer.data)
 
         # 평균 별점과 리뷰 개수 계산
-
         avg_rating = queryset.aggregate(Avg('rating'))['rating__avg']
-
         review_count = queryset.aggregate(Count('id'))['id__count']
+
+        # 유저 이름과 프로필 사진 추가
+        for review_data in response.data:
+            user = User.objects.get(id=review_data['user'])
+            review_data['user_name'] = user.username
+            review_data['user_profile_photo'] = user.profile.profile_picture.url if user.profile.profile_picture else None
 
         # 응답 데이터에 추가
         response.data.append({
