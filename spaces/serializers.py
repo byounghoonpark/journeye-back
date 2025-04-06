@@ -198,6 +198,7 @@ class HotelDetailSerializer(serializers.ModelSerializer):
     longitude = serializers.SerializerMethodField()
     nearby_aiconcierges = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
+    star_rating = serializers.SerializerMethodField()
 
     class Meta:
         model = Hotel
@@ -206,6 +207,9 @@ class HotelDetailSerializer(serializers.ModelSerializer):
             'services', 'average_rating', 'review_count', 'nearby_basespaces', 'nearby_aiconcierges', 'review_photos',
             'reviews', 'like_count'
         ]
+
+    def get_star_rating(self, obj):
+        return obj.star_rating if obj.star_rating is not None else 0
 
     def get_like_count(self, obj):
         return Like.objects.filter(basespace=obj).count()

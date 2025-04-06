@@ -107,6 +107,8 @@ class SendEmailVerificationView(APIView):
         if not email:
             return Response({"message": "이메일 주소를 입력해주세요."}, status=status.HTTP_400_BAD_REQUEST)
 
+        if User.objects.filter(email=email).exists():
+            return Response({"message": "이미 가입된 이메일입니다."}, status=status.HTTP_400_BAD_REQUEST)
 
         # 6자리 인증번호 생성
         verification_code = str(random.randint(100000, 999999))
