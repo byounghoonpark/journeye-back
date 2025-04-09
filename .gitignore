@@ -27,3 +27,6 @@ photos/
 
 secrets.json
 /dump.rdb
+
+# Static files
+staticfiles/

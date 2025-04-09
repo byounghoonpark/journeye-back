@@ -4,11 +4,10 @@ autobahn==24.4.2
 Automat==24.8.1
 boto3==1.37.5
 botocore==1.37.5
-carehare==1.0.2
+celery==5.3.6
 certifi==2025.1.31
 cffi==1.17.1
 channels==4.2.0
-channels-rabbitmq==4.0.1
 channels_redis==4.2.1
 charset-normalizer==3.4.1
 constantly==23.10.4

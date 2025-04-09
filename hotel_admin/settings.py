@@ -109,8 +109,6 @@ ASGI_APPLICATION = 'hotel_admin.asgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-with open(os.path.join(BASE_DIR, 'secrets.json')) as config_file:
-    secret_config = json.load(config_file)
 
 DATABASES = {
     'default': {
@@ -196,7 +194,7 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "ALGORITHM": "HS256",
-    "SIGNING_KEY": "your_secret_key_here",  # 실제 운영에서는 .env 파일에서 로드해야 함
+    "SIGNING_KEY": os.getenv("JWT_SIGNING_KEY"),
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
@@ -214,13 +212,13 @@ SWAGGER_SETTINGS = {
 }
 
 # 이메일 설정
-EMAIL_BACKEND = secret_config['EMAIL_BACKEND']
-EMAIL_HOST = secret_config['EMAIL_HOST']
-EMAIL_PORT = secret_config['EMAIL_PORT']
-EMAIL_USE_TLS = secret_config['EMAIL_USE_TLS']
-EMAIL_HOST_USER = secret_config['EMAIL_HOST_USER']
-EMAIL_HOST_PASSWORD = secret_config['EMAIL_HOST_PASSWORD']
-DEFAULT_FROM_EMAIL = secret_config['DEFAULT_FROM_EMAIL']
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS") == "True"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 
 
 sentry_sdk.init(
@@ -239,12 +237,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'photos')
 
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
-AWS_ACCESS_KEY_ID = "admin"  # MinIO ID
-AWS_SECRET_ACCESS_KEY = "admin123"  # MinIO Password
-AWS_STORAGE_BUCKET_NAME = "mybucket"  # 생성한 버킷 이름
-AWS_S3_ENDPOINT_URL = "http://localhost:9000"  # MinIO API 주소
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "admin")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "admin123")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "mybucket")
+AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", "http://localhost:9000")
 AWS_S3_ADDRESSING_STYLE = "path"  # Path-style URL 사용
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}"
 
 
-DEEPL_API_KEY = secret_config['DEEPL_API_KEY']
+DEEPL_API_KEY = os.getenv("DEEPL_API_KEY")
