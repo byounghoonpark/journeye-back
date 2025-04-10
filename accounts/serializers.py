@@ -60,9 +60,15 @@ class SpaceManagerAssignSerializer(serializers.ModelSerializer):
         return instance
 
 class UserProfileDetailSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.SerializerMethodField()
     class Meta:
         model = UserProfile
         fields = ['profile_picture', 'nationality', 'phone_number','language', 'email_verified', 'phone_verified']
+
+    def get_profile_picture(self, obj):
+        if obj.profile_picture:
+            return obj.profile_picture.url  # 상대 경로만 반환
+        return None
 
 class UserDetailSerializer(serializers.ModelSerializer):
     profile = UserProfileDetailSerializer()
