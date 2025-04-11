@@ -18,6 +18,7 @@ class Reservation(models.Model):
     reservation_date = models.DateTimeField(auto_now_add=True, help_text="예약 생성일", verbose_name='예약 생성일')
     people = models.PositiveIntegerField(help_text="예약 인원수", verbose_name='예약 인원수')
     is_approved = models.BooleanField(default=False, help_text="예약 승인 여부", verbose_name='예약 승인 여부')
+    guest = models.JSONField(default=dict, help_text="예약 인원", verbose_name='예약 인원')
 
     def is_valid(self):
         return self.end_date >= datetime.now().date()

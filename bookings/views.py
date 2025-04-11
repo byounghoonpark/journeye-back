@@ -224,7 +224,8 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
             start_time=validated_data["start_time"],
             end_date=validated_data["end_date"],
             end_time=validated_data["end_time"],
-            people=1
+            people=1,
+            guest=validated_data["guest"]
         )
 
         check_in = self.create_check_in(
@@ -522,6 +523,7 @@ class RoomUsageViewSet(viewsets.ViewSet):
                 "check_out_time": active_checkin.check_out_time.strftime(
                     "%H:%M:%S") if active_checkin.check_out_time else None,
                 "people": active_checkin.reservation.people,
+                "guest": active_checkin.reservation.guest,
             }
             guest_info = {
                 "guest_name": active_checkin.user.username or active_checkin.user.get_full_name(),

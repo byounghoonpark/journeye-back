@@ -30,3 +30,5 @@ secrets.json
 
 # Static files
 staticfiles/
+/qr.py
+/journeye_qr.png
