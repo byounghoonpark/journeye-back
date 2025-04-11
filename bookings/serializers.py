@@ -28,7 +28,7 @@ class ReservationSerializer(serializers.ModelSerializer):
 class ReservationPeopleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
-        fields = ['people']
+        fields = ['guest']
 
 class CheckInSerializer(serializers.ModelSerializer):
     """체크인 정보를 저장하는 시리얼라이저"""
