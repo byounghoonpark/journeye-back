@@ -67,23 +67,22 @@ class CheckInResponseSerializer(serializers.ModelSerializer):
 
 class CheckInUpdateSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=True)
-    reservation = ReservationPeopleSerializer()
+    guest = serializers.JSONField(required=False)
 
     class Meta:
         model = CheckIn
-        fields = ['id', 'is_day_use', 'check_in_date', 'check_in_time', 'check_out_date', 'check_out_time', 'reservation']
+        fields = ['id', 'is_day_use', 'check_in_date', 'check_in_time', 'check_out_date', 'check_out_time', 'guest']
 
     def update(self, instance, validated_data):
-        reservation_data = validated_data.pop('reservation', None)
+        guest_data = validated_data.pop('reservation', None)
 
         # CheckIn 인스턴스 업데이트
         instance = super().update(instance, validated_data)
 
         # Reservation 인스턴스 업데이트
-        if reservation_data:
+        if guest_data:
             reservation = instance.reservation
-            for attr, value in reservation_data.items():
-                setattr(reservation, attr, value)
+            reservation.guest = guest_data
             reservation.save()
 
         return instance
