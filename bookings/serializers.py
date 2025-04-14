@@ -74,7 +74,7 @@ class CheckInUpdateSerializer(serializers.ModelSerializer):
         fields = ['id', 'is_day_use', 'check_in_date', 'check_in_time', 'check_out_date', 'check_out_time', 'guest']
 
     def update(self, instance, validated_data):
-        guest_data = validated_data.pop('reservation', None)
+        guest_data = validated_data.pop('guest', None)
 
         # CheckIn 인스턴스 업데이트
         instance = super().update(instance, validated_data)
