@@ -52,7 +52,7 @@ class CheckInRequestSerializer(serializers.Serializer):
     language = serializers.CharField(required=False, help_text="언어 (워크인 고객인 경우)")
     guest_name = serializers.CharField(required=False, help_text="이름 (워크인 고객인 경우)")
     email = serializers.EmailField(required=False, help_text="이메일 (워크인 고객인 경우)")
-    phone = serializers.CharField(required=False, help_text="전화번호 (워크인 고객인 경우)")
+    phone = serializers.CharField(required=False, allow_blank=True, help_text="전화번호 (워크인 고객인 경우)")
     guest = serializers.JSONField(required=True, help_text="예약 인원")
 
 class CheckInResponseSerializer(serializers.ModelSerializer):
