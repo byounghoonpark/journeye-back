@@ -7,7 +7,8 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from django_filters.rest_framework import DjangoFilterBackend
 from geopy.distance import geodesic
-
+from django.db.models.functions import Cast
+from django.db.models import IntegerField
 from accounts.permissions import IsAdminOrManager
 from bookings.serializers import HotelRoomMemoSerializer, HotelRoomHistorySerializer
 from concierge.models import AIConcierge
@@ -202,7 +203,9 @@ class HotelRoomViewSet(ModelViewSet):
         basespace_id = self.request.query_params.get('basespace_id')
         if basespace_id:
             queryset = queryset.filter(room_type__basespace_id=basespace_id)
-        return queryset
+        return queryset.annotate(
+            room_number_as_int=Cast('room_number', IntegerField())
+        ).order_by('room_number_as_int')
 
     @swagger_auto_schema(
         manual_parameters=[
@@ -284,7 +287,9 @@ class FloorViewSet(ModelViewSet):
         basespace_id = self.request.query_params.get("basespace_id")
         if basespace_id:
             queryset = queryset.filter(basespace_id=basespace_id)
-        return queryset
+        return queryset.annotate(
+            floor_number_as_int=Cast('floor_number', IntegerField())
+        ).order_by('floor_number_as_int')
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
