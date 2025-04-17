@@ -238,7 +238,8 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
         return Response({"message": "워크인 고객 체크인 완료", "user_id": new_user.id, "temp_code": check_in.temp_code}, status=status.HTTP_201_CREATED)
 
     def create_check_in(self, user, room, reservation, end_date, end_time, is_day_use, temp_code=None):
-        """체크인 객체 생성"""
+        if temp_code is None:
+            temp_code = generate_unique_temp_code()
         check_in = CheckIn.objects.create(
             user=user,
             hotel_room=room,
@@ -250,10 +251,7 @@ class CheckInAndOutViewSet(viewsets.ViewSet):
             temp_code=temp_code,
             is_day_use=is_day_use
         )
-
-        # 객실 상태 변경 및 로그 기록
         self.update_room_status(room, "체크인")
-
         return check_in
 
     def update_room_status(self, room, status):
